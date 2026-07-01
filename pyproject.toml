@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 
 [project.scripts]
 fast-onboarding-resume = "fast_onboarding.cli.resume_mvp:main"
+fast-onboarding-web = "fast_onboarding.cli.web:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -40,6 +40,78 @@ PYTHONPATH=src python3 -m fast_onboarding.cli.resume_mvp \
 - `jd_analysis.json`: JD 结构化分析结果。
 - `ats_report.json`: ATS 关键词覆盖和格式风险报告。
 
+## Web UI
+
+项目提供一个无前端构建依赖的原生 Web UI，适合直接放在服务器上由 nginx 反向代理。
+
+本地启动：
+
+```bash
+python3 scripts/serve_web.py --host 127.0.0.1 --port 8787
+```
+
+访问：
+
+```text
+http://127.0.0.1:8787/
+```
+
+nginx 子路径反代启动方式：
+
+```bash
+PYTHONPATH=src python3 -m fast_onboarding.cli.web \
+  --host 127.0.0.1 \
+  --port 8787 \
+  --base-path /resume
+```
+
+nginx 示例配置在：
+
+```text
+deploy/nginx/fast-onboarding.conf
+```
+
+关键兼容点：
+
+- 应用默认绑定 `127.0.0.1`，适合只暴露给 nginx。
+- `--base-path /resume` 支持部署在网站子路径下。
+- 前端资源和 API 使用相同 base path，不依赖根路径 `/`。
+- 后端读取 `X-Forwarded-Proto`、`X-Forwarded-Host`、`X-Forwarded-Prefix`，便于后续生成外部链接。
+- 健康检查接口：`/api/health`，子路径部署时为 `/resume/api/health`。
+
+## 用户数据库
+
+Web UI 默认使用 SQLite 保存用户相关数据：
+
+```text
+data/fast_onboarding.sqlite3
+```
+
+可在启动时指定数据库位置：
+
+```bash
+python3 scripts/serve_web.py \
+  --host 127.0.0.1 \
+  --port 8787 \
+  --base-path /resume \
+  --database data/fast_onboarding.sqlite3
+```
+
+当前保存的数据：
+
+- `users`: 用户基础信息，包括姓名、邮箱、电话、城市、目标岗位。
+- `profile_snapshots`: 每次生成时的用户素材快照。
+- `job_descriptions`: 每次输入的 JD、目标岗位和 JD 分析结果。
+- `resume_generations`: 生成的简历 Markdown、ATS 报告和输出文件路径。
+
+相关 API：
+
+- `POST /api/generate`: 生成简历并保存用户、JD、素材快照和生成记录。
+- `GET /api/users/{user_id}`: 查询用户基础信息。
+- `GET /api/users/{user_id}/generations`: 查询用户最近生成历史。
+
+如果部署在 `/resume` 子路径下，API 前缀也对应变为 `/resume/api/...`。
+
 ## 功能优先级
 
 ### 1. 用户素材库
@@ -131,6 +203,7 @@ src/fast_onboarding/
   integrations/      # DeepSeek 等外部服务客户端
   intelligence/      # 公司搜索、GitHub 项目归档、行业趋势监控
   documents/         # Word 模板和文档编辑能力
+  web/               # 原生 Web UI 与 JSON API
   cli/               # 命令行入口
   resume_mvp.py      # MVP 简历生成主 workflow
 ```
@@ -138,12 +211,14 @@ src/fast_onboarding/
 主要模块：
 
 - `fast_onboarding.core.config`: 统一 DeepSeek API 配置。
+- `fast_onboarding.core.user_database`: 用户、JD、生成历史的 SQLite 持久化。
 - `fast_onboarding.core.usage_limiter`: 用户用量控制。
 - `fast_onboarding.integrations.deepseek_client`: DeepSeek API 客户端。
 - `fast_onboarding.intelligence.github_project_archiver`: GitHub 项目收集和归档。
 - `fast_onboarding.intelligence.company_search`: 公司信息统一搜索。
 - `fast_onboarding.intelligence.industry_monitor`: 每日 JD 和 GitHub 行业趋势监控。
 - `fast_onboarding.documents.resume_word_agent`: 模板注册和 Word 占位符替换。
+- `fast_onboarding.web.server`: Web UI server 和 JSON API。
 - `fast_onboarding.resume_mvp`: MVP 简历生成链路。
 
 `utils/` 目前保留为兼容层，旧代码仍可继续导入 `utils.resume_mvp` 等模块；新代码建议直接使用 `fast_onboarding.*`。

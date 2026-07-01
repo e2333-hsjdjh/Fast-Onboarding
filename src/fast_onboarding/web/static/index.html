@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>简历生成器</title>
+    <link rel="stylesheet" href="__BASE_PATH__/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="panel profile-panel">
+        <div class="panel-header">
+          <p class="eyebrow">素材库</p>
+          <h1>简历生成器</h1>
+        </div>
+        <label>姓名<input id="name" value="张三" /></label>
+        <label>用户 ID<input id="userId" placeholder="留空时按邮箱/电话自动生成" /></label>
+        <label>目标岗位<input id="targetTitle" value="AI 产品经理" /></label>
+        <label>邮箱<input id="email" value="zhangsan@example.com" /></label>
+        <label>电话<input id="phone" value="13800000000" /></label>
+        <label>城市<input id="location" value="上海" /></label>
+        <label>个人摘要<textarea id="summary">3 年 AI 产品与自动化工具经验，熟悉从用户调研到交付落地的完整流程</textarea></label>
+        <label>技能关键词<textarea id="skills">产品, 用户研究, SQL, Python, AI, LLM, 项目管理, A/B, GitHub</textarea></label>
+      </section>
+
+      <section class="panel work-panel">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">JD 匹配</p>
+            <h2>输入岗位与经历</h2>
+          </div>
+          <button id="generateBtn" type="button">生成</button>
+        </div>
+        <label>岗位 JD<textarea id="jdText" class="large">AI 产品经理
+
+岗位职责：
+- 负责 AI 工具产品的需求分析、用户研究、原型设计和项目管理。
+- 推动 LLM 能力在招聘、简历、文档自动化场景落地。
+- 分析用户痛点，优化简历生成效率、ATS 通过率和转化效果。
+- 协同工程团队建设数据分析、A/B 实验和自动化评估体系。</textarea></label>
+        <label>工作经历<textarea id="experienceText" class="medium">AI 简历生成器产品负责人 | 个人项目
+负责 JD 解析、ATS 检查和 Word 模板生成工作流设计
+建设 DeepSeek 驱动的简历改写 agent，提升岗位匹配效率
+量化结果：将简历初稿生成时间从 60 分钟压缩到 5 分钟</textarea></label>
+        <label>项目经历<textarea id="projectText" class="medium">GitHub 行业项目雷达 | 个人项目
+自动收集 GitHub 高星项目并归档，提炼可迁移的项目亮点
+将行业项目趋势映射到简历项目表达，辅助生成加分项</textarea></label>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="score-row">
+          <div>
+            <p class="eyebrow">ATS</p>
+            <strong id="score">--</strong>
+          </div>
+          <span id="status">待生成</span>
+        </div>
+        <div class="saved-row">
+          <span>用户</span>
+          <code id="savedUser">未保存</code>
+        </div>
+        <div class="result-grid">
+          <section>
+            <h2>缺失关键词</h2>
+            <div id="missing" class="chips"></div>
+          </section>
+          <section>
+            <h2>风险提示</h2>
+            <ul id="warnings"></ul>
+          </section>
+        </div>
+        <section class="history-section">
+          <h2>最近生成</h2>
+          <ol id="history"></ol>
+        </section>
+        <h2>简历预览</h2>
+        <pre id="resumePreview"></pre>
+      </section>
+    </main>
+    <script src="__BASE_PATH__/static/app.js"></script>
+  </body>
+</html>
