@@ -1,0 +1,36 @@
+{
+  "name": "张三",
+  "target_title": "AI 产品经理",
+  "email": "zhangsan@example.com",
+  "phone": "13800000000",
+  "location": "上海",
+  "summary": "3 年 AI 产品与自动化工具经验，熟悉从用户调研到交付落地的完整流程",
+  "skills": ["产品", "用户研究", "SQL", "Python", "AI", "LLM", "项目管理", "A/B"],
+  "experiences": [
+    {
+      "title": "AI 简历生成器产品负责人",
+      "organization": "个人项目",
+      "start": "2026.01",
+      "end": "至今",
+      "bullets": [
+        "负责 JD 解析、素材匹配、ATS 检查和 Word 模板生成工作流设计",
+        "建设 DeepSeek 驱动的简历改写 agent，提升岗位匹配效率"
+      ],
+      "skills": ["AI", "LLM", "产品", "Word", "ATS"],
+      "metrics": ["将简历初稿生成时间从 60 分钟压缩到 5 分钟"]
+    }
+  ],
+  "projects": [
+    {
+      "title": "GitHub 行业项目雷达",
+      "organization": "个人项目",
+      "bullets": [
+        "自动收集 GitHub 高星项目并归档，提炼可迁移的项目亮点",
+        "将行业项目趋势映射到简历项目表达，辅助生成加分项"
+      ],
+      "skills": ["GitHub", "Python", "自动化"],
+      "metrics": ["每日归档 20+ 个相关项目"]
+    }
+  ],
+  "education": ["某大学 本科"]
+}

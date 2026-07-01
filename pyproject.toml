@@ -1,0 +1,9 @@
+[project]
+name = "resume-generator-utils"
+version = "0.1.0"
+description = "Utility agents for a resume generator workflow."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
