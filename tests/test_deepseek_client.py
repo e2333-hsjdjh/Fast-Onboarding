@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from utils.config import DeepSeekConfig
-from utils.deepseek_client import DeepSeekClient
+from fast_onboarding.core.config import DeepSeekConfig
+from fast_onboarding.integrations.deepseek_client import DeepSeekClient
 
 
 class DeepSeekClientTest(unittest.TestCase):

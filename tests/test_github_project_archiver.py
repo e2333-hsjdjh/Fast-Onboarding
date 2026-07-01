@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from utils.github_project_archiver import GitHubProjectArchiver
+from fast_onboarding.intelligence.github_project_archiver import GitHubProjectArchiver
 
 
 class GitHubProjectArchiverTest(unittest.TestCase):

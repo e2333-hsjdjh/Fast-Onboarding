@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from utils.usage_limiter import Quota, UsageLimitExceeded, UsageLimiter
+from fast_onboarding.core.usage_limiter import Quota, UsageLimitExceeded, UsageLimiter
 
 
 class UsageLimiterTest(unittest.TestCase):

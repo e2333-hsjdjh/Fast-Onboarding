@@ -4,7 +4,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from utils.resume_word_agent import ResumeTemplate, ResumeWordAgent, TemplateRegistry
+from fast_onboarding.documents.resume_word_agent import ResumeTemplate, ResumeWordAgent, TemplateRegistry
 
 
 class ResumeWordAgentTest(unittest.TestCase):

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from utils.resume_mvp import (
+from fast_onboarding.resume_mvp import (
     CandidateProfile,
     Experience,
     JDAnalyzer,

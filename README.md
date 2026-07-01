@@ -24,6 +24,16 @@ python3 scripts/resume_mvp.py \
   --target-role "AI 产品经理"
 ```
 
+如果已经安装为包，或在开发环境中设置了 `PYTHONPATH=src`，也可以使用包内 CLI：
+
+```bash
+PYTHONPATH=src python3 -m fast_onboarding.cli.resume_mvp \
+  --profile examples/profile.sample.json \
+  --jd examples/jd.sample.txt \
+  --output-dir workspace/mvp-output \
+  --target-role "AI 产品经理"
+```
+
 输出文件：
 
 - `resume.md`: 针对岗位生成的简历初稿。
@@ -111,15 +121,32 @@ python3 scripts/resume_mvp.py \
 - 中间：JD、公司信息和行业情报。
 - 右侧：简历预览、ATS 分数和导出按钮。
 
-## 已有模块
+## 项目结构
 
-- `utils/deepseek_client.py`: 统一 DeepSeek API 客户端。
-- `utils/github_project_archiver.py`: GitHub 项目收集和归档。
-- `utils/company_search.py`: 公司信息统一搜索。
-- `utils/usage_limiter.py`: 用户用量控制。
-- `utils/resume_word_agent.py`: 模板注册和 Word 占位符替换。
-- `utils/resume_mvp.py`: MVP 简历生成链路。
-- `utils/industry_monitor.py`: 每日 JD 和 GitHub 行业趋势监控。
+项目使用标准 `src` layout，核心包名为 `fast_onboarding`：
+
+```text
+src/fast_onboarding/
+  core/              # 配置、用户用量控制等基础能力
+  integrations/      # DeepSeek 等外部服务客户端
+  intelligence/      # 公司搜索、GitHub 项目归档、行业趋势监控
+  documents/         # Word 模板和文档编辑能力
+  cli/               # 命令行入口
+  resume_mvp.py      # MVP 简历生成主 workflow
+```
+
+主要模块：
+
+- `fast_onboarding.core.config`: 统一 DeepSeek API 配置。
+- `fast_onboarding.core.usage_limiter`: 用户用量控制。
+- `fast_onboarding.integrations.deepseek_client`: DeepSeek API 客户端。
+- `fast_onboarding.intelligence.github_project_archiver`: GitHub 项目收集和归档。
+- `fast_onboarding.intelligence.company_search`: 公司信息统一搜索。
+- `fast_onboarding.intelligence.industry_monitor`: 每日 JD 和 GitHub 行业趋势监控。
+- `fast_onboarding.documents.resume_word_agent`: 模板注册和 Word 占位符替换。
+- `fast_onboarding.resume_mvp`: MVP 简历生成链路。
+
+`utils/` 目前保留为兼容层，旧代码仍可继续导入 `utils.resume_mvp` 等模块；新代码建议直接使用 `fast_onboarding.*`。
 
 ## 配置
 

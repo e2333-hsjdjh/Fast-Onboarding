@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 
-from utils.company_search import CompanyInfoSearch, DuckDuckGoHtmlProvider
+from fast_onboarding.intelligence.company_search import CompanyInfoSearch, DuckDuckGoHtmlProvider
 
 
 class CompanySearchTest(unittest.TestCase):

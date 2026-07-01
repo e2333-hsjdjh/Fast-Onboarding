@@ -1,9 +1,9 @@
 import tempfile
 import unittest
 
-from utils.company_search import SearchResult
-from utils.github_project_archiver import GitHubProject
-from utils.industry_monitor import DailyIndustryMonitor
+from fast_onboarding.intelligence.company_search import SearchResult
+from fast_onboarding.intelligence.github_project_archiver import GitHubProject
+from fast_onboarding.intelligence.industry_monitor import DailyIndustryMonitor
 
 
 class FakeCompanySearch:
