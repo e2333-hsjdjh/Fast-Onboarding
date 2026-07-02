@@ -13,6 +13,9 @@ from xml.sax.saxutils import escape
 from fast_onboarding.integrations.deepseek_client import DeepSeekClient
 
 
+BUILTIN_ZSC_TABLE_RESUME_TEMPLATE_ID = "zsc_table_resume"
+
+
 @dataclass(frozen=True)
 class ResumeTemplate:
     template_id: str
@@ -52,6 +55,32 @@ class TemplateRegistry:
     def _write(self, templates: list[ResumeTemplate]) -> None:
         payload = [template.__dict__ for template in templates]
         self.registry_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def builtin_template_path(template_filename: str = "zsc_table_resume.docx") -> Path:
+    """Return the path to a packaged Word resume template."""
+    return Path(__file__).with_name("templates") / template_filename
+
+
+def builtin_resume_templates() -> list[ResumeTemplate]:
+    """Built-in resume templates that ship with the project."""
+    return [
+        ResumeTemplate(
+            template_id=BUILTIN_ZSC_TABLE_RESUME_TEMPLATE_ID,
+            name="朱思潮同款紧凑表格简历模板",
+            path=str(builtin_template_path()),
+            tags=["zh", "student", "media", "compact", "table"],
+            description="基于用户提供的 Word 简历制作，保留单页高密度中文表格版式，并替换为通用占位符。",
+        )
+    ]
+
+
+def register_builtin_templates(registry: TemplateRegistry | None = None) -> TemplateRegistry:
+    """Register packaged templates into a JSON registry and return it."""
+    target_registry = registry or TemplateRegistry()
+    for template in builtin_resume_templates():
+        target_registry.add(template)
+    return target_registry
 
 
 class DocxEditor:

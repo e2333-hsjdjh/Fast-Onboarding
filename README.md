@@ -12,7 +12,7 @@ MVP 先完成最短可用链路：
 4. 系统从用户经历和项目中选择最相关内容。
 5. 生成针对岗位的 Markdown 简历初稿。
 6. 输出 ATS 检查报告，提示缺失关键词和基础风险。
-7. 后续可接入 Word 模板 agent 导出 `.docx`。
+7. 可接入 Word 模板 agent 导出 `.docx`。
 
 运行示例：
 
@@ -112,6 +112,47 @@ python3 scripts/serve_web.py \
 
 如果部署在 `/resume` 子路径下，API 前缀也对应变为 `/resume/api/...`。
 
+## Word 简历模板
+
+项目内置了一个基于用户提供的 `朱思潮-简历.docx` 制作的中文紧凑表格模板：
+
+```text
+src/fast_onboarding/documents/templates/zsc_table_resume.docx
+```
+
+模板特点：
+
+- 单页高密度中文表格版式，适合学生、校园经历、媒体/传播/运营方向。
+- 保留参考简历的 9 列表格结构、紧凑页边距和分区节奏。
+- 已将个人信息和经历内容替换为稳定占位符，例如 `{{name}}`、`{{phone}}`、`{{school}}`、`{{exp1_desc}}`、`{{content}}`。
+- 可通过 `register_builtin_templates()` 注册到模板库，再由 `ResumeWordAgent.render()` 写入用户素材。
+
+示例：
+
+```python
+from fast_onboarding.documents import (
+    BUILTIN_ZSC_TABLE_RESUME_TEMPLATE_ID,
+    ResumeWordAgent,
+    TemplateRegistry,
+    register_builtin_templates,
+)
+
+registry = register_builtin_templates(TemplateRegistry("data/templates/registry.json"))
+agent = ResumeWordAgent(registry=registry)
+agent.render(
+    template_id=BUILTIN_ZSC_TABLE_RESUME_TEMPLATE_ID,
+    output_docx="workspace/output/resume.docx",
+    resume_facts={
+        "name": "张三",
+        "phone": "13800000000",
+        "email": "zhangsan@example.com",
+        "role": "新媒体运营",
+        "exp1_desc": "负责账号内容策划，单月阅读量提升 35%。",
+    },
+    target_role="新媒体运营",
+)
+```
+
 ## 功能优先级
 
 ### 1. 用户素材库
@@ -137,6 +178,8 @@ python3 scripts/serve_web.py \
 ### 6. 模板库与 Word 编辑 Agent
 
 维护不同岗位的模板，例如产品经理、数据分析、软件工程师、运营、市场、金融、留学申请和学术 CV。Word 编辑 agent 负责把生成内容写入模板。
+
+当前已提供 `zsc_table_resume` 内置模板，后续可以继续扩展为不同角色和行业的模板库。
 
 ### 7. 公司研究 Agent
 
