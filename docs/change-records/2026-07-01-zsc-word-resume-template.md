@@ -2,7 +2,7 @@
 
 ## Request
 
-按照用户提供的 `/Users/zzzzzz/Desktop/朱思潮-简历.docx` 制作一份可复用的简历模板。
+按照用户提供的 `/Users/zzzzzz/Desktop/简历.docx` 制作一份可复用的简历模板。
 
 ## Architecture Snapshot
 

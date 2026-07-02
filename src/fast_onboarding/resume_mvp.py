@@ -179,7 +179,11 @@ class ResumeGenerator:
         draft = "\n\n".join(section for section in sections if section.strip()) + "\n"
         if self.deepseek_client:
             return self.deepseek_client.complete_text(
-                "你是简历编辑。请保持 Markdown 结构，优化措辞，突出 JD 关键词和量化结果。",
+                (
+                    "你是内容优先的简历编辑。内容质量优先于格式美观：先保留真实岗位匹配证据、"
+                    "职责/痛点对应关系、量化结果和可验证项目，再考虑排版压缩。请保持 Markdown 结构，"
+                    "不要为了模板长度删除高价值证据。"
+                ),
                 draft,
             )
         return draft
@@ -190,14 +194,25 @@ class ResumeGenerator:
         return [item for score, item in scored[:limit] if score > 0] or items[:limit]
 
     def _score(self, item: Experience, analysis: JDAnalysis) -> int:
-        text = " ".join([item.title, item.organization, *item.bullets, *item.skills]).lower()
-        return sum(1 for keyword in analysis.ats_keywords + analysis.required_keywords if keyword.lower() in text)
+        text = self._item_text(item)
+        score = 0
+        score += self._keyword_hits(text, analysis.required_keywords) * 5
+        score += self._keyword_hits(text, analysis.ats_keywords) * 3
+        score += self._line_hits(text, analysis.responsibilities) * 2
+        score += self._line_hits(text, analysis.pain_points) * 3
+        score += len(item.metrics) * 4
+        score += sum(2 for bullet in item.bullets if self._has_metric_signal(bullet))
+        return score
 
     def _summary(self, profile: CandidateProfile, analysis: JDAnalysis) -> str:
         matched = self._rank_skills(profile.skills, analysis)[:5]
         base = profile.summary or f"{profile.target_title or analysis.target_role} 候选人"
+        pain_focus = "、".join(analysis.pain_points[:2])
         if matched:
-            return f"{base}。重点匹配：{'、'.join(matched)}。"
+            detail = f"重点匹配：{'、'.join(matched)}。"
+            if pain_focus:
+                detail += f"可优先回应岗位痛点：{pain_focus}。"
+            return f"{base}。{detail}"
         return base
 
     def _contact(self, profile: CandidateProfile) -> str:
@@ -219,6 +234,76 @@ class ResumeGenerator:
             body = "\n".join(f"- {line}" for line in bullets + metrics)
             blocks.append(f"### {item.title} | {item.organization}{dates}\n{body}")
         return "\n\n".join(blocks)
+
+    def _item_text(self, item: Experience) -> str:
+        return " ".join(
+            [item.title, item.organization, *item.bullets, *item.skills, *item.metrics]
+        ).lower()
+
+    def _keyword_hits(self, text: str, keywords: list[str]) -> int:
+        return sum(1 for keyword in set(keywords) if keyword and keyword.lower() in text)
+
+    def _line_hits(self, text: str, lines: list[str]) -> int:
+        hits = 0
+        for line in lines:
+            tokens = [token for token in re.split(r"[\s，。；、,.()/]+", line.lower()) if len(token) >= 2]
+            if tokens and any(token in text for token in tokens):
+                hits += 1
+        return hits
+
+    def _has_metric_signal(self, text: str) -> bool:
+        return bool(re.search(r"\d+|%|％|提升|降低|增长|压缩|减少|增加|人次|次数|播放量", text))
+
+
+class ContentQualityChecker:
+    """Evaluate whether generated content has enough role-relevant evidence."""
+
+    def check(self, profile: CandidateProfile, analysis: JDAnalysis, resume_markdown: str) -> dict[str, Any]:
+        all_items = profile.experiences + profile.projects
+        evidence_text = " ".join(
+            [
+                resume_markdown,
+                *profile.skills,
+                *(line for item in all_items for line in [item.title, *item.bullets, *item.skills, *item.metrics]),
+            ]
+        ).lower()
+        required = sorted(set(analysis.required_keywords + analysis.ats_keywords))
+        missing_required = [keyword for keyword in required if keyword.lower() not in evidence_text]
+        metric_backed_items = [item.title for item in all_items if item.metrics or any(self._has_metric_signal(b) for b in item.bullets)]
+        relevant_items = [item.title for item in all_items if self._matches_any(item, analysis)]
+        gaps = []
+        if missing_required:
+            gaps.append("仍有必需关键词没有被真实素材覆盖。")
+        if not metric_backed_items:
+            gaps.append("缺少量化结果，内容说服力会弱于格式优化。")
+        if analysis.pain_points and not relevant_items:
+            gaps.append("尚未找到能直接回应 JD 痛点的经历或项目。")
+        score = 100
+        score -= min(len(missing_required) * 8, 40)
+        if not metric_backed_items:
+            score -= 25
+        if analysis.pain_points and not relevant_items:
+            score -= 20
+        return {
+            "score": max(score, 0),
+            "priority": "content_first",
+            "principle": "先保证岗位匹配、真实证据、业务痛点和量化结果，再做模板与格式压缩。",
+            "missing_required_keywords": missing_required,
+            "metric_backed_items": metric_backed_items,
+            "role_relevant_items": relevant_items,
+            "content_gaps": gaps,
+        }
+
+    def _matches_any(self, item: Experience, analysis: JDAnalysis) -> bool:
+        text = " ".join([item.title, item.organization, *item.bullets, *item.skills, *item.metrics]).lower()
+        signals = analysis.required_keywords + analysis.ats_keywords + analysis.pain_points + analysis.responsibilities
+        return any(signal and any(token in text for token in self._tokens(signal)) for signal in signals)
+
+    def _tokens(self, text: str) -> list[str]:
+        return [token for token in re.split(r"[\s，。；、,.()/]+", text.lower()) if len(token) >= 2]
+
+    def _has_metric_signal(self, text: str) -> bool:
+        return bool(re.search(r"\d+|%|％|提升|降低|增长|压缩|减少|增加|人次|次数|播放量", text))
 
 
 class ATSChecker:
@@ -253,10 +338,12 @@ class ResumeMVPWorkflow:
         jd_analyzer: JDAnalyzer | None = None,
         resume_generator: ResumeGenerator | None = None,
         ats_checker: ATSChecker | None = None,
+        content_checker: ContentQualityChecker | None = None,
     ) -> None:
         self.jd_analyzer = jd_analyzer or JDAnalyzer()
         self.resume_generator = resume_generator or ResumeGenerator()
         self.ats_checker = ats_checker or ATSChecker()
+        self.content_checker = content_checker or ContentQualityChecker()
 
     def run(
         self,
@@ -271,6 +358,7 @@ class ResumeMVPWorkflow:
         analysis = self.jd_analyzer.analyze(jd_text, target_role=target_role)
         resume = self.resume_generator.generate_markdown(profile, analysis)
         ats = self.ats_checker.check(resume, analysis)
+        content = self.content_checker.check(profile, analysis, resume)
         (output / "resume.md").write_text(resume, encoding="utf-8")
         (output / "jd_analysis.json").write_text(
             json.dumps(asdict(analysis), ensure_ascii=False, indent=2),
@@ -280,9 +368,15 @@ class ResumeMVPWorkflow:
             json.dumps(ats, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        (output / "content_report.json").write_text(
+            json.dumps(content, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
         return {
             "resume_path": str(output / "resume.md"),
             "analysis_path": str(output / "jd_analysis.json"),
             "ats_report_path": str(output / "ats_report.json"),
+            "content_report_path": str(output / "content_report.json"),
             "ats": ats,
+            "content": content,
         }

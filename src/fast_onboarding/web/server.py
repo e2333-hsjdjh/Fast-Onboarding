@@ -11,8 +11,11 @@ from typing import Any
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlparse
 
+from fast_onboarding.core.config import DeepSeekConfig
 from fast_onboarding.core.user_database import UserDatabase
+from fast_onboarding.integrations.deepseek_client import DeepSeekClient
 from fast_onboarding.resume_mvp import MaterialStore, ResumeMVPWorkflow
+from fast_onboarding.web.ai_assistant import WorkspaceAIAssistant
 
 
 @dataclass(frozen=True)
@@ -77,9 +80,18 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             route = self._route_path()
-            if route != "/api/generate":
-                self._send_json({"error": "not_found"}, status=404)
+            if route == "/api/generate":
+                self._handle_generate()
                 return
+            if route.startswith("/api/ai/"):
+                self._handle_ai_post(route)
+                return
+            if route.startswith("/api/users/"):
+                self._handle_user_post(route)
+                return
+            self._send_json({"error": "not_found"}, status=404)
+
+        def _handle_generate(self) -> None:
             try:
                 payload = self._read_json()
                 profile = MaterialStore("data/web-profile.json").from_dict(payload.get("profile", {}))
@@ -108,6 +120,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     output_paths={
                         "resume_path": result["resume_path"],
                         "analysis_path": result["analysis_path"],
+                        "content_report_path": result["content_report_path"],
                         "ats_report_path": result["ats_report_path"],
                     },
                     user_id=requested_user_id,
@@ -120,6 +133,59 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     "proxy": self._proxy_context(),
                 }
                 self._send_json(response)
+            except ValueError as exc:
+                self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except json.JSONDecodeError:
+                self._send_json({"error": "bad_json"}, status=400)
+
+        def _handle_ai_post(self, route: str) -> None:
+            try:
+                payload = self._read_json()
+                assistant = WorkspaceAIAssistant(self._optional_deepseek_client())
+                if route == "/api/ai/autofill":
+                    target = str(payload.get("target", "experience"))
+                    context = dict(payload.get("context") or {})
+                    self._send_json({"ai": assistant.autofill(context, target=target)})
+                    return
+                if route == "/api/ai/chat/stream":
+                    context = dict(payload.get("context") or {})
+                    message = str(payload.get("message", ""))
+                    self._send_json_stream(assistant.chat_stream(context, message))
+                    return
+                if route == "/api/ai/chat":
+                    context = dict(payload.get("context") or {})
+                    message = str(payload.get("message", ""))
+                    self._send_json({"ai": assistant.chat(context, message)})
+                    return
+                self._send_json({"error": "not_found"}, status=404)
+            except ValueError as exc:
+                self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except json.JSONDecodeError:
+                self._send_json({"error": "bad_json"}, status=400)
+
+        def _handle_user_post(self, route: str) -> None:
+            parts = [part for part in route.split("/") if part]
+            if len(parts) != 4:
+                self._send_json({"error": "not_found"}, status=404)
+                return
+            user_id = unquote(parts[2])
+            resource = parts[3]
+            try:
+                payload = self._read_json()
+                db = UserDatabase(config.database_path)
+                if resource == "experiences":
+                    if not str(payload.get("title", "")).strip():
+                        raise ValueError("title is required")
+                    self._send_json({"experience": db.save_experience(user_id, payload)})
+                    return
+                if resource == "projects":
+                    if not str(payload.get("company_name", "")).strip():
+                        raise ValueError("company_name is required")
+                    if not str(payload.get("role_title", "")).strip():
+                        raise ValueError("role_title is required")
+                    self._send_json({"project": db.save_project(user_id, payload)})
+                    return
+                self._send_json({"error": "not_found"}, status=404)
             except ValueError as exc:
                 self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
             except json.JSONDecodeError:
@@ -163,6 +229,12 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if len(parts) == 4 and parts[3] == "generations":
                 self._send_json({"generations": db.list_generations(user_id)})
                 return
+            if len(parts) == 4 and parts[3] == "experiences":
+                self._send_json({"experiences": db.list_experiences(user_id)})
+                return
+            if len(parts) == 4 and parts[3] == "projects":
+                self._send_json({"projects": db.list_projects(user_id)})
+                return
             self._send_json({"error": "not_found"}, status=404)
 
         def _send_json(self, payload: dict[str, Any], *, status: int = 200, include_body: bool = True) -> None:
@@ -174,6 +246,17 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
             if include_body:
                 self.wfile.write(body)
+
+        def _send_json_stream(self, events) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            for event in events:
+                line = json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n"
+                self.wfile.write(line)
+                self.wfile.flush()
 
         def _send_static(self, relative_path: str, *, include_body: bool = True) -> None:
             safe = Path(relative_path)
@@ -204,6 +287,12 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 "host": self.headers.get("X-Forwarded-Host", self.headers.get("Host", "")),
                 "prefix": self.headers.get("X-Forwarded-Prefix", config.base_path),
             }
+
+        def _optional_deepseek_client(self) -> DeepSeekClient | None:
+            try:
+                return DeepSeekClient(DeepSeekConfig.from_env())
+            except RuntimeError:
+                return None
 
     return ResumeWebHandler
 

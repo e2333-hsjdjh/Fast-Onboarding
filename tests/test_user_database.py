@@ -34,6 +34,38 @@ class UserDatabaseTest(unittest.TestCase):
             self.assertEqual(generations[0]["ats_report"]["score"], 100)
             self.assertIn("# 张三", generations[0]["resume_markdown"])
 
+    def test_saves_user_experiences_and_application_projects(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = UserDatabase(Path(tmp) / "users.sqlite3")
+
+            experience = db.save_experience(
+                "zhangsan@example.com",
+                {
+                    "user_name": "张三",
+                    "category": "project",
+                    "title": "增长实验平台",
+                    "organization": "实习项目",
+                    "bullets": ["分析转化漏斗并定位留存问题"],
+                    "skills": ["SQL", "增长"],
+                    "metrics": ["转化率提升 18%"],
+                },
+            )
+            project = db.save_project(
+                "zhangsan@example.com",
+                {
+                    "company_name": "示例科技",
+                    "role_title": "增长产品经理",
+                    "jd_text": "负责增长分析和用户研究。",
+                    "status": "draft",
+                    "notes": "第一版",
+                },
+            )
+
+            self.assertEqual(experience["user_id"], "zhangsan@example.com")
+            self.assertEqual(project["user_id"], "zhangsan@example.com")
+            self.assertEqual(db.list_experiences("zhangsan@example.com")[0]["metrics"], ["转化率提升 18%"])
+            self.assertEqual(db.list_projects("zhangsan@example.com")[0]["company_name"], "示例科技")
+
 
 if __name__ == "__main__":
     unittest.main()

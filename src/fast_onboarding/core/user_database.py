@@ -39,6 +39,27 @@ class UserDatabase:
 
     def upsert_user(self, profile: "CandidateProfile", *, user_id: str | None = None) -> str:
         active_user_id = user_id or self._stable_user_id(profile)
+        self.upsert_user_record(
+            user_id=active_user_id,
+            name=profile.name,
+            email=profile.email,
+            phone=profile.phone,
+            location=profile.location,
+            target_title=profile.target_title,
+        )
+        return active_user_id
+
+    def upsert_user_record(
+        self,
+        *,
+        user_id: str,
+        name: str = "",
+        email: str = "",
+        phone: str = "",
+        location: str = "",
+        target_title: str = "",
+    ) -> str:
+        active_user_id = user_id.strip().lower().replace(" ", "-")
         now = utc_now()
         with sqlite_connection(self.db_path) as conn:
             conn.execute(
@@ -46,25 +67,141 @@ class UserDatabase:
                 insert into users(user_id, name, email, phone, location, target_title, created_at, updated_at)
                 values (?, ?, ?, ?, ?, ?, ?, ?)
                 on conflict(user_id) do update set
-                    name = excluded.name,
-                    email = excluded.email,
-                    phone = excluded.phone,
-                    location = excluded.location,
-                    target_title = excluded.target_title,
+                    name = coalesce(nullif(excluded.name, ''), users.name),
+                    email = coalesce(nullif(excluded.email, ''), users.email),
+                    phone = coalesce(nullif(excluded.phone, ''), users.phone),
+                    location = coalesce(nullif(excluded.location, ''), users.location),
+                    target_title = coalesce(nullif(excluded.target_title, ''), users.target_title),
+                    updated_at = excluded.updated_at
+                """,
+                (active_user_id, name or active_user_id, email, phone, location, target_title, now, now),
+            )
+        return active_user_id
+
+    def save_experience(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        active_user_id = self.upsert_user_record(user_id=user_id, name=str(payload.get("user_name", "")))
+        experience_id = str(payload.get("experience_id") or f"exp-{uuid4().hex[:12]}")
+        now = utc_now()
+        record = {
+            "experience_id": experience_id,
+            "user_id": active_user_id,
+            "category": str(payload.get("category") or "experience"),
+            "title": str(payload.get("title") or ""),
+            "organization": str(payload.get("organization") or ""),
+            "start": str(payload.get("start") or ""),
+            "end": str(payload.get("end") or ""),
+            "bullets": list(payload.get("bullets") or []),
+            "skills": list(payload.get("skills") or []),
+            "metrics": list(payload.get("metrics") or []),
+            "updated_at": now,
+        }
+        with sqlite_connection(self.db_path) as conn:
+            conn.execute(
+                """
+                insert into user_experiences(
+                    experience_id, user_id, category, title, organization, start_date, end_date,
+                    bullets_json, skills_json, metrics_json, created_at, updated_at
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(experience_id) do update set
+                    category = excluded.category,
+                    title = excluded.title,
+                    organization = excluded.organization,
+                    start_date = excluded.start_date,
+                    end_date = excluded.end_date,
+                    bullets_json = excluded.bullets_json,
+                    skills_json = excluded.skills_json,
+                    metrics_json = excluded.metrics_json,
                     updated_at = excluded.updated_at
                 """,
                 (
+                    experience_id,
                     active_user_id,
-                    profile.name,
-                    profile.email,
-                    profile.phone,
-                    profile.location,
-                    profile.target_title,
+                    record["category"],
+                    record["title"],
+                    record["organization"],
+                    record["start"],
+                    record["end"],
+                    json.dumps(record["bullets"], ensure_ascii=False),
+                    json.dumps(record["skills"], ensure_ascii=False),
+                    json.dumps(record["metrics"], ensure_ascii=False),
                     now,
                     now,
                 ),
             )
-        return active_user_id
+        return record
+
+    def list_experiences(self, user_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        with sqlite_connection(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                select * from user_experiences
+                where user_id = ?
+                order by updated_at desc, created_at desc
+                limit ?
+                """,
+                (user_id, limit),
+            ).fetchall()
+        return [self._experience_from_row(dict(row)) for row in rows]
+
+    def save_project(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        active_user_id = self.upsert_user_record(user_id=user_id, name=str(payload.get("user_name", "")))
+        project_id = str(payload.get("project_id") or f"proj-{uuid4().hex[:12]}")
+        now = utc_now()
+        record = {
+            "project_id": project_id,
+            "user_id": active_user_id,
+            "company_name": str(payload.get("company_name") or ""),
+            "role_title": str(payload.get("role_title") or ""),
+            "jd_text": str(payload.get("jd_text") or ""),
+            "status": str(payload.get("status") or "draft"),
+            "notes": str(payload.get("notes") or ""),
+            "updated_at": now,
+        }
+        with sqlite_connection(self.db_path) as conn:
+            conn.execute(
+                """
+                insert into application_projects(
+                    project_id, user_id, company_name, role_title, jd_text,
+                    status, notes, created_at, updated_at
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(project_id) do update set
+                    company_name = excluded.company_name,
+                    role_title = excluded.role_title,
+                    jd_text = excluded.jd_text,
+                    status = excluded.status,
+                    notes = excluded.notes,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    project_id,
+                    active_user_id,
+                    record["company_name"],
+                    record["role_title"],
+                    record["jd_text"],
+                    record["status"],
+                    record["notes"],
+                    now,
+                    now,
+                ),
+            )
+        return record
+
+    def list_projects(self, user_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        with sqlite_connection(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                select * from application_projects
+                where user_id = ?
+                order by updated_at desc, created_at desc
+                limit ?
+                """,
+                (user_id, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def save_profile_snapshot(self, user_id: str, profile: "CandidateProfile") -> int:
         payload = json.dumps(asdict(profile), ensure_ascii=False)
@@ -230,6 +367,41 @@ class UserDatabase:
 
                 create index if not exists idx_resume_generations_user_created
                     on resume_generations(user_id, created_at);
+
+                create table if not exists user_experiences (
+                    experience_id text primary key,
+                    user_id text not null,
+                    category text not null,
+                    title text not null,
+                    organization text,
+                    start_date text,
+                    end_date text,
+                    bullets_json text not null,
+                    skills_json text not null,
+                    metrics_json text not null,
+                    created_at text not null,
+                    updated_at text not null,
+                    foreign key(user_id) references users(user_id)
+                );
+
+                create index if not exists idx_user_experiences_user_updated
+                    on user_experiences(user_id, updated_at);
+
+                create table if not exists application_projects (
+                    project_id text primary key,
+                    user_id text not null,
+                    company_name text not null,
+                    role_title text not null,
+                    jd_text text not null,
+                    status text not null,
+                    notes text,
+                    created_at text not null,
+                    updated_at text not null,
+                    foreign key(user_id) references users(user_id)
+                );
+
+                create index if not exists idx_application_projects_user_updated
+                    on application_projects(user_id, updated_at);
                 """
             )
 
@@ -243,4 +415,12 @@ class UserDatabase:
         row["analysis"] = json.loads(row.pop("analysis_json"))
         row["ats_report"] = json.loads(row.pop("ats_report_json"))
         row["output_paths"] = json.loads(row.pop("output_paths_json"))
+        return row
+
+    def _experience_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        row["start"] = row.pop("start_date")
+        row["end"] = row.pop("end_date")
+        row["bullets"] = json.loads(row.pop("bullets_json"))
+        row["skills"] = json.loads(row.pop("skills_json"))
+        row["metrics"] = json.loads(row.pop("metrics_json"))
         return row

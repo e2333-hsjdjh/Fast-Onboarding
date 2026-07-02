@@ -47,6 +47,115 @@ class WebServerTest(unittest.TestCase):
                 self.assertIn("text/html", response.getheader("Content-Type"))
                 response.read()
 
+                conn.request("GET", "/resume/")
+                response = conn.getresponse()
+                html = response.read().decode("utf-8")
+                self.assertEqual(response.status, 200)
+                self.assertIn('data-page="overview"', html)
+                self.assertIn('data-page="profile"', html)
+                self.assertIn('data-page="projects"', html)
+                self.assertIn('data-page="ai"', html)
+                self.assertIn('data-page="results"', html)
+
+                ai_payload = {
+                    "target": "experience",
+                    "context": {
+                        "experience": {
+                            "title": "AI 简历生成器",
+                            "bullets": ["负责 DeepSeek 驱动的简历改写 agent"],
+                        }
+                    },
+                }
+                conn.request(
+                    "POST",
+                    "/resume/api/ai/autofill",
+                    json.dumps(ai_payload).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                ai_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertIn("authenticity_notice", ai_body["ai"])
+
+                conn.request(
+                    "POST",
+                    "/resume/api/ai/chat",
+                    json.dumps({"message": "怎么补充真实性？", "context": ai_payload["context"]}).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                chat_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertTrue(chat_body["ai"]["suggestions"])
+
+                conn.request(
+                    "POST",
+                    "/resume/api/ai/chat/stream",
+                    json.dumps({"message": "怎么补充真实性？", "context": ai_payload["context"]}).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                stream_lines = [
+                    json.loads(line)
+                    for line in response.read().decode("utf-8").splitlines()
+                    if line.strip()
+                ]
+                self.assertEqual(response.status, 200)
+                self.assertEqual(stream_lines[0]["type"], "start")
+                self.assertEqual(stream_lines[-1]["type"], "final")
+                self.assertTrue(any(event["type"] == "delta" for event in stream_lines))
+
+                experience_payload = {
+                    "user_name": "张三",
+                    "category": "project",
+                    "title": "增长实验平台",
+                    "organization": "实习项目",
+                    "bullets": ["分析转化漏斗并定位留存问题"],
+                    "skills": ["SQL", "增长"],
+                    "metrics": ["转化率提升 18%"],
+                }
+                conn.request(
+                    "POST",
+                    "/resume/api/users/zhangsan@example.com/experiences",
+                    json.dumps(experience_payload).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                experience_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(experience_body["experience"]["title"], "增长实验平台")
+
+                project_payload = {
+                    "user_name": "张三",
+                    "company_name": "示例科技",
+                    "role_title": "增长产品经理",
+                    "jd_text": "负责增长分析和用户研究。",
+                    "status": "draft",
+                    "notes": "第一版",
+                }
+                conn.request(
+                    "POST",
+                    "/resume/api/users/zhangsan@example.com/projects",
+                    json.dumps(project_payload).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                project_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(project_body["project"]["company_name"], "示例科技")
+
+                conn.request("GET", "/resume/api/users/zhangsan@example.com/experiences")
+                response = conn.getresponse()
+                experiences_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(len(experiences_body["experiences"]), 1)
+
+                conn.request("GET", "/resume/api/users/zhangsan@example.com/projects")
+                response = conn.getresponse()
+                projects_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(len(projects_body["projects"]), 1)
+
                 payload = {
                     "profile": {
                         "name": "张三",
@@ -79,6 +188,8 @@ class WebServerTest(unittest.TestCase):
                 body = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(response.status, 200)
                 self.assertIn("resume_markdown", body)
+                self.assertEqual(body["content"]["priority"], "content_first")
+                self.assertTrue(Path(body["content_report_path"]).exists())
                 self.assertEqual(body["proxy"]["proto"], "https")
                 self.assertEqual(body["persistence"]["user_id"], "zhangsan@example.com")
                 self.assertTrue(Path(body["resume_path"]).exists())
