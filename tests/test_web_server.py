@@ -17,6 +17,19 @@ class WebServerTest(unittest.TestCase):
         self.assertEqual(normalize_base_path("resume"), "/resume")
         self.assertEqual(normalize_base_path("/resume/"), "/resume")
 
+    def test_static_page_switching_does_not_use_hash_routing(self):
+        app_js = Path("src/fast_onboarding/web/static/app.js").read_text(encoding="utf-8")
+
+        self.assertNotIn("location.hash", app_js)
+        self.assertNotIn("hashchange", app_js)
+
+    def test_home_background_uses_visible_image_layer(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn(".home-page .portal::before", styles)
+        self.assertIn("resume-hero-3d-v2.png", styles)
+        self.assertIn("brightness(1.24)", styles)
+
     def test_health_and_generate_work_behind_base_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = WebAppConfig(
@@ -51,11 +64,40 @@ class WebServerTest(unittest.TestCase):
                 response = conn.getresponse()
                 html = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
-                self.assertIn('data-page="overview"', html)
-                self.assertIn('data-page="profile"', html)
-                self.assertIn('data-page="projects"', html)
-                self.assertIn('data-page="ai"', html)
-                self.assertIn('data-page="results"', html)
+                self.assertIn('href="/resume/workspace"', html)
+                self.assertNotIn('id="workspace"', html)
+                self.assertNotIn('data-page="profile"', html)
+                self.assertNotIn('href="#workspace"', html)
+
+                conn.request("GET", "/resume/static/styles.css")
+                response = conn.getresponse()
+                css = response.read().decode("utf-8")
+                self.assertEqual(response.status, 200)
+                self.assertIn("/resume/static/assets/resume-hero-3d-v2.png", css)
+
+                conn.request("HEAD", "/resume/static/assets/resume-hero-3d-v2.png")
+                response = conn.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.getheader("Content-Type"), "image/png")
+                response.read()
+
+                conn.request("HEAD", "/resume/workspace")
+                response = conn.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertIn("text/html", response.getheader("Content-Type"))
+                response.read()
+
+                conn.request("GET", "/resume/workspace")
+                response = conn.getresponse()
+                workspace_html = response.read().decode("utf-8")
+                self.assertEqual(response.status, 200)
+                self.assertIn('id="workspace"', workspace_html)
+                self.assertIn('data-page="overview"', workspace_html)
+                self.assertIn('data-page="profile"', workspace_html)
+                self.assertIn('data-page="projects"', workspace_html)
+                self.assertIn('data-page="ai"', workspace_html)
+                self.assertIn('data-page="results"', workspace_html)
+                self.assertIn('href="/resume/"', workspace_html)
 
                 ai_payload = {
                     "target": "experience",

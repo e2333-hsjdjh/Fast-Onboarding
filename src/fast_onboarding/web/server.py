@@ -60,6 +60,9 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if route in {"", "/"}:
                 self._send_static("index.html")
                 return
+            if route in {"/workspace", "/workspace/"}:
+                self._send_static("workspace.html")
+                return
             if route.startswith("/static/"):
                 self._send_static(route.removeprefix("/static/"))
                 return
@@ -72,6 +75,9 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 return
             if route in {"", "/"}:
                 self._send_static("index.html", include_body=False)
+                return
+            if route in {"/workspace", "/workspace/"}:
+                self._send_static("workspace.html", include_body=False)
                 return
             if route.startswith("/static/"):
                 self._send_static(route.removeprefix("/static/"), include_body=False)
@@ -267,12 +273,14 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if not path.exists() or not path.is_file():
                 self._send_json({"error": "not_found"}, status=404)
                 return
-            text = path.read_text(encoding="utf-8")
-            text = text.replace("__BASE_PATH__", config.base_path)
-            body = text.encode("utf-8")
             content_type = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
             if path.suffix in {".html", ".css", ".js"}:
+                text = path.read_text(encoding="utf-8")
+                text = text.replace("__BASE_PATH__", config.base_path)
+                body = text.encode("utf-8")
                 content_type += "; charset=utf-8"
+            else:
+                body = path.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", "no-store")

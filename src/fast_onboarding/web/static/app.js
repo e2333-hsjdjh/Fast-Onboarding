@@ -20,14 +20,6 @@ function showPage(pageName) {
   document.querySelectorAll('[data-page-link]').forEach((link) => {
     link.classList.toggle('active', link.dataset.pageLink === next);
   });
-  if (location.hash !== `#${next}`) {
-    history.replaceState(null, '', `#${next}`);
-  }
-}
-
-function pageFromHash() {
-  const candidate = location.hash.replace(/^#/, '');
-  return ['overview', 'profile', 'projects', 'ai', 'results'].includes(candidate) ? candidate : 'overview';
 }
 
 function activeUserId() {
@@ -425,8 +417,7 @@ document.querySelectorAll('[data-page-link]').forEach((link) => {
     document.getElementById('workspace').scrollIntoView({ block: 'start' });
   });
 });
-window.addEventListener('hashchange', () => showPage(pageFromHash()));
 
-showPage(pageFromHash());
+showPage('overview');
 renderExperiences();
 renderProjects();
