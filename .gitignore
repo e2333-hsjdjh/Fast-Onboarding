@@ -3,3 +3,7 @@ __pycache__/
 .env
 data/
 workspace/
+tests/
+docs/
+tests
+docs
