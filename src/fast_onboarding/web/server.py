@@ -86,6 +86,9 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             route = self._route_path()
+            if route.startswith("/api/auth/"):
+                self._handle_auth_post(route)
+                return
             if route == "/api/generate":
                 self._handle_generate()
                 return
@@ -139,6 +142,32 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     "proxy": self._proxy_context(),
                 }
                 self._send_json(response)
+            except ValueError as exc:
+                self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except json.JSONDecodeError:
+                self._send_json({"error": "bad_json"}, status=400)
+
+        def _handle_auth_post(self, route: str) -> None:
+            try:
+                payload = self._read_json()
+                db = UserDatabase(config.database_path)
+                if route == "/api/auth/register":
+                    user = db.register_user(
+                        name=str(payload.get("name", "")),
+                        email=str(payload.get("email", "")),
+                        password=str(payload.get("password", "")),
+                        target_title=str(payload.get("target_title", "")),
+                    )
+                    self._send_json({"user": user})
+                    return
+                if route == "/api/auth/login":
+                    user = db.login_user(
+                        email=str(payload.get("email", "")),
+                        password=str(payload.get("password", "")),
+                    )
+                    self._send_json({"user": user})
+                    return
+                self._send_json({"error": "not_found"}, status=404)
             except ValueError as exc:
                 self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
             except json.JSONDecodeError:

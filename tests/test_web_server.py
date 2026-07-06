@@ -30,6 +30,31 @@ class WebServerTest(unittest.TestCase):
         self.assertIn("resume-hero-3d-v2.png", styles)
         self.assertIn("brightness(1.24)", styles)
 
+    def test_user_avatar_opens_experience_editor(self):
+        workspace_html = Path("src/fast_onboarding/web/static/workspace.html").read_text(encoding="utf-8")
+        app_js = Path("src/fast_onboarding/web/static/app.js").read_text(encoding="utf-8")
+
+        self.assertIn('aria-label="修改用户经历"', workspace_html)
+        self.assertIn("openUserExperiences", app_js)
+        self.assertIn("setSourceCategory('basic')", app_js)
+        self.assertIn("showWorkspaceView('editor')", app_js)
+        self.assertNotIn("function showPage", app_js)
+
+    def test_workspace_uses_resume_library_and_three_pane_editor(self):
+        workspace_html = Path("src/fast_onboarding/web/static/workspace.html").read_text(encoding="utf-8")
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="resumeLibrary"', workspace_html)
+        self.assertIn('id="resumeEditor"', workspace_html)
+        self.assertIn('id="resumeCardGrid"', workspace_html)
+        self.assertIn('id="experienceDialog"', workspace_html)
+        self.assertIn("source-pane", workspace_html)
+        self.assertIn("resume-pane", workspace_html)
+        self.assertIn("ai-pane", workspace_html)
+        self.assertIn(".resume-card-grid", styles)
+        self.assertIn("grid-template-columns: 300px minmax(460px, 1fr) 340px", styles)
+        self.assertIn(".experience-dialog", styles)
+
     def test_health_and_generate_work_behind_base_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = WebAppConfig(
@@ -92,12 +117,42 @@ class WebServerTest(unittest.TestCase):
                 workspace_html = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
                 self.assertIn('id="workspace"', workspace_html)
-                self.assertIn('data-page="overview"', workspace_html)
-                self.assertIn('data-page="profile"', workspace_html)
-                self.assertIn('data-page="projects"', workspace_html)
-                self.assertIn('data-page="ai"', workspace_html)
-                self.assertIn('data-page="results"', workspace_html)
+                self.assertIn('id="resumeLibrary"', workspace_html)
+                self.assertIn('id="resumeEditor"', workspace_html)
+                self.assertIn('id="sourceCategoryNav"', workspace_html)
+                self.assertIn('id="aiReply"', workspace_html)
                 self.assertIn('href="/resume/"', workspace_html)
+                self.assertIn('id="authGate"', workspace_html)
+                self.assertIn('id="userBadge"', workspace_html)
+
+                register_payload = {
+                    "name": "李四",
+                    "email": "lisi@example.com",
+                    "password": "123456",
+                    "target_title": "增长产品经理",
+                }
+                conn.request(
+                    "POST",
+                    "/resume/api/auth/register",
+                    json.dumps(register_payload).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                register_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(register_body["user"]["user_id"], "lisi@example.com")
+                self.assertNotIn("password_hash", register_body["user"])
+
+                conn.request(
+                    "POST",
+                    "/resume/api/auth/login",
+                    json.dumps({"email": "lisi@example.com", "password": "123456"}).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                login_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(login_body["user"]["name"], "李四")
 
                 ai_payload = {
                     "target": "experience",

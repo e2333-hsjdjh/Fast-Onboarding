@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import asdict
 from contextlib import contextmanager
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
+import secrets
 import sqlite3
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -78,6 +80,74 @@ class UserDatabase:
             )
         return active_user_id
 
+    def register_user(
+        self,
+        *,
+        name: str,
+        email: str,
+        password: str,
+        phone: str = "",
+        location: str = "",
+        target_title: str = "",
+    ) -> dict[str, Any]:
+        clean_email = email.strip().lower()
+        if not clean_email:
+            raise ValueError("email is required")
+        if len(password) < 6:
+            raise ValueError("password must be at least 6 characters")
+        active_user_id = self._normalize_user_id(clean_email)
+        if self.get_user(active_user_id):
+            raise ValueError("user already exists")
+        salt = secrets.token_hex(16)
+        password_hash = self._hash_password(password, salt)
+        now = utc_now()
+        display_name = name.strip() or clean_email.split("@")[0]
+        avatar_initials = self._avatar_initials(display_name)
+        with sqlite_connection(self.db_path) as conn:
+            conn.execute(
+                """
+                insert into users(
+                    user_id, name, email, phone, location, target_title,
+                    password_hash, password_salt, avatar_initials, created_at, updated_at
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    active_user_id,
+                    display_name,
+                    clean_email,
+                    phone,
+                    location,
+                    target_title,
+                    password_hash,
+                    salt,
+                    avatar_initials,
+                    now,
+                    now,
+                ),
+            )
+        return self.public_user(active_user_id) or {}
+
+    def login_user(self, *, email: str, password: str) -> dict[str, Any]:
+        user_id = self._normalize_user_id(email)
+        with sqlite_connection(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("select * from users where user_id = ?", (user_id,)).fetchone()
+        if not row:
+            raise ValueError("invalid email or password")
+        user = dict(row)
+        salt = str(user.get("password_salt") or "")
+        expected_hash = str(user.get("password_hash") or "")
+        if not salt or not expected_hash:
+            raise ValueError("password login is not enabled for this user")
+        if not secrets.compare_digest(self._hash_password(password, salt), expected_hash):
+            raise ValueError("invalid email or password")
+        return self._public_user_from_row(user)
+
+    def public_user(self, user_id: str) -> dict[str, Any] | None:
+        user = self.get_user(user_id)
+        return self._public_user_from_row(user) if user else None
+
     def save_experience(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         active_user_id = self.upsert_user_record(user_id=user_id, name=str(payload.get("user_name", "")))
         experience_id = str(payload.get("experience_id") or f"exp-{uuid4().hex[:12]}")
@@ -86,6 +156,7 @@ class UserDatabase:
             "experience_id": experience_id,
             "user_id": active_user_id,
             "category": str(payload.get("category") or "experience"),
+            "template_key": str(payload.get("template_key") or payload.get("category") or "experience"),
             "title": str(payload.get("title") or ""),
             "organization": str(payload.get("organization") or ""),
             "start": str(payload.get("start") or ""),
@@ -93,6 +164,8 @@ class UserDatabase:
             "bullets": list(payload.get("bullets") or []),
             "skills": list(payload.get("skills") or []),
             "metrics": list(payload.get("metrics") or []),
+            "template_data": dict(payload.get("template_data") or {}),
+            "evidence": list(payload.get("evidence") or []),
             "updated_at": now,
         }
         with sqlite_connection(self.db_path) as conn:
@@ -100,9 +173,10 @@ class UserDatabase:
                 """
                 insert into user_experiences(
                     experience_id, user_id, category, title, organization, start_date, end_date,
-                    bullets_json, skills_json, metrics_json, created_at, updated_at
+                    bullets_json, skills_json, metrics_json, template_key, template_data_json,
+                    evidence_json, created_at, updated_at
                 )
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 on conflict(experience_id) do update set
                     category = excluded.category,
                     title = excluded.title,
@@ -112,6 +186,9 @@ class UserDatabase:
                     bullets_json = excluded.bullets_json,
                     skills_json = excluded.skills_json,
                     metrics_json = excluded.metrics_json,
+                    template_key = excluded.template_key,
+                    template_data_json = excluded.template_data_json,
+                    evidence_json = excluded.evidence_json,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -125,6 +202,9 @@ class UserDatabase:
                     json.dumps(record["bullets"], ensure_ascii=False),
                     json.dumps(record["skills"], ensure_ascii=False),
                     json.dumps(record["metrics"], ensure_ascii=False),
+                    record["template_key"],
+                    json.dumps(record["template_data"], ensure_ascii=False),
+                    json.dumps(record["evidence"], ensure_ascii=False),
                     now,
                     now,
                 ),
@@ -329,6 +409,9 @@ class UserDatabase:
                     phone text,
                     location text,
                     target_title text,
+                    password_hash text,
+                    password_salt text,
+                    avatar_initials text,
                     created_at text not null,
                     updated_at text not null
                 );
@@ -379,6 +462,9 @@ class UserDatabase:
                     bullets_json text not null,
                     skills_json text not null,
                     metrics_json text not null,
+                    template_key text,
+                    template_data_json text not null default '{}',
+                    evidence_json text not null default '[]',
                     created_at text not null,
                     updated_at text not null,
                     foreign key(user_id) references users(user_id)
@@ -404,12 +490,58 @@ class UserDatabase:
                     on application_projects(user_id, updated_at);
                 """
             )
+            self._ensure_user_column(conn, "password_hash", "text")
+            self._ensure_user_column(conn, "password_salt", "text")
+            self._ensure_user_column(conn, "avatar_initials", "text")
+            self._ensure_table_column(conn, "user_experiences", "template_key", "text")
+            self._ensure_table_column(conn, "user_experiences", "template_data_json", "text not null default '{}'")
+            self._ensure_table_column(conn, "user_experiences", "evidence_json", "text not null default '[]'")
 
     def _stable_user_id(self, profile: "CandidateProfile") -> str:
         key = (profile.email or profile.phone or profile.name).strip()
         if key:
-            return key.lower().replace(" ", "-")
+            return self._normalize_user_id(key)
         return f"user-{uuid4().hex[:12]}"
+
+    def _normalize_user_id(self, value: str) -> str:
+        return value.strip().lower().replace(" ", "-")
+
+    def _hash_password(self, password: str, salt: str) -> str:
+        return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000).hex()
+
+    def _avatar_initials(self, name: str) -> str:
+        clean = name.strip()
+        if not clean:
+            return "U"
+        if any("\u4e00" <= char <= "\u9fff" for char in clean):
+            return clean[:2].upper()
+        parts = [part for part in clean.replace("_", " ").replace("-", " ").split(" ") if part]
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+        return clean[:2].upper()
+
+    def _ensure_user_column(self, conn: sqlite3.Connection, column: str, column_type: str) -> None:
+        existing = {row[1] for row in conn.execute("pragma table_info(users)").fetchall()}
+        if column not in existing:
+            conn.execute(f"alter table users add column {column} {column_type}")
+
+    def _ensure_table_column(self, conn: sqlite3.Connection, table: str, column: str, column_type: str) -> None:
+        existing = {row[1] for row in conn.execute(f"pragma table_info({table})").fetchall()}
+        if column not in existing:
+            conn.execute(f"alter table {table} add column {column} {column_type}")
+
+    def _public_user_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "user_id": row.get("user_id", ""),
+            "name": row.get("name", ""),
+            "email": row.get("email", ""),
+            "phone": row.get("phone", ""),
+            "location": row.get("location", ""),
+            "target_title": row.get("target_title", ""),
+            "avatar_initials": row.get("avatar_initials") or self._avatar_initials(str(row.get("name") or "")),
+            "created_at": row.get("created_at", ""),
+            "updated_at": row.get("updated_at", ""),
+        }
 
     def _generation_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
         row["analysis"] = json.loads(row.pop("analysis_json"))
@@ -423,4 +555,7 @@ class UserDatabase:
         row["bullets"] = json.loads(row.pop("bullets_json"))
         row["skills"] = json.loads(row.pop("skills_json"))
         row["metrics"] = json.loads(row.pop("metrics_json"))
+        row["template_key"] = row.get("template_key") or row.get("category") or "experience"
+        row["template_data"] = json.loads(row.pop("template_data_json", "{}") or "{}")
+        row["evidence"] = json.loads(row.pop("evidence_json", "[]") or "[]")
         return row

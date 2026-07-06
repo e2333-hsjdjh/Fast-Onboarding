@@ -43,11 +43,18 @@ class UserDatabaseTest(unittest.TestCase):
                 {
                     "user_name": "张三",
                     "category": "project",
+                    "template_key": "project",
                     "title": "增长实验平台",
                     "organization": "实习项目",
                     "bullets": ["分析转化漏斗并定位留存问题"],
                     "skills": ["SQL", "增长"],
                     "metrics": ["转化率提升 18%"],
+                    "template_data": {
+                        "project_name": "增长实验平台",
+                        "problem": "注册后留存低",
+                        "result_metrics": "转化率提升 18%",
+                    },
+                    "evidence": ["https://example.com/project"],
                 },
             )
             project = db.save_project(
@@ -62,9 +69,35 @@ class UserDatabaseTest(unittest.TestCase):
             )
 
             self.assertEqual(experience["user_id"], "zhangsan@example.com")
+            self.assertEqual(experience["template_key"], "project")
+            self.assertEqual(experience["template_data"]["problem"], "注册后留存低")
+            self.assertEqual(experience["evidence"], ["https://example.com/project"])
             self.assertEqual(project["user_id"], "zhangsan@example.com")
             self.assertEqual(db.list_experiences("zhangsan@example.com")[0]["metrics"], ["转化率提升 18%"])
+            self.assertEqual(
+                db.list_experiences("zhangsan@example.com")[0]["template_data"]["result_metrics"],
+                "转化率提升 18%",
+            )
             self.assertEqual(db.list_projects("zhangsan@example.com")[0]["company_name"], "示例科技")
+
+    def test_registers_and_logs_in_user_without_exposing_password_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = UserDatabase(Path(tmp) / "users.sqlite3")
+
+            user = db.register_user(
+                name="张三",
+                email="ZhangSan@Example.com",
+                password="123456",
+                target_title="AI 产品经理",
+            )
+
+            self.assertEqual(user["user_id"], "zhangsan@example.com")
+            self.assertEqual(user["avatar_initials"], "张三")
+            self.assertNotIn("password_hash", user)
+            logged_in = db.login_user(email="zhangsan@example.com", password="123456")
+            self.assertEqual(logged_in["name"], "张三")
+            with self.assertRaises(ValueError):
+                db.login_user(email="zhangsan@example.com", password="wrong-password")
 
 
 if __name__ == "__main__":
