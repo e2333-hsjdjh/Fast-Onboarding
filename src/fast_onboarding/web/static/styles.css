@@ -1674,3 +1674,313 @@ pre.assistant-output {
     display: block;
   }
 }
+
+/* Workspace layout: keep the document primary while adapting each independent pane. */
+.workspace-page {
+  min-width: 320px;
+}
+
+.workspace-page .portal {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 10px clamp(12px, 2vw, 24px);
+  box-shadow: 0 1px 0 rgba(33, 41, 52, 0.08);
+}
+
+.workspace-page .topbar {
+  gap: 16px;
+}
+
+.workspace-page .brand {
+  min-width: 0;
+}
+
+#workspaceTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-home {
+  width: min(1720px, 100%);
+  min-height: calc(100dvh - 56px);
+  margin: 0 auto;
+  padding: clamp(14px, 2vw, 28px);
+}
+
+.resume-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: clamp(12px, 1.4vw, 18px);
+}
+
+.resume-editor-shell {
+  grid-template-columns: minmax(230px, 0.8fr) minmax(480px, 1.75fr) minmax(280px, 0.95fr);
+  align-items: start;
+  gap: clamp(12px, 1.25vw, 18px);
+  min-height: calc(100dvh - 88px);
+}
+
+.source-pane,
+.resume-pane,
+.ai-pane {
+  min-height: min(820px, calc(100dvh - 88px));
+  border-radius: 8px;
+}
+
+.source-pane,
+.ai-pane {
+  top: 68px;
+  max-height: calc(100dvh - 84px);
+}
+
+.resume-pane {
+  min-width: 0;
+  max-height: calc(100dvh - 84px);
+  padding: clamp(18px, 2vw, 30px);
+}
+
+.resume-paper {
+  width: min(100%, 860px);
+  padding: clamp(2px, 0.5vw, 8px);
+}
+
+.resume-document-head {
+  display: grid;
+  gap: 4px;
+}
+
+.resume-name-input {
+  max-width: 100%;
+  font-size: 30px;
+}
+
+.resume-contact-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.resume-contact-row input {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#userId {
+  display: none;
+}
+
+.resume-section textarea {
+  width: 100%;
+  min-height: 108px;
+  overflow-wrap: anywhere;
+}
+
+.source-detail {
+  padding-bottom: 22px;
+}
+
+.source-records li {
+  min-width: 0;
+  padding: 12px 0;
+}
+
+.source-records strong,
+.record-meta,
+.ai-tool,
+.assistant-output,
+.auth-note {
+  overflow-wrap: anywhere;
+}
+
+.ai-action-grid {
+  grid-template-columns: 1fr;
+}
+
+.ai-tool {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  white-space: normal;
+}
+
+.chat-box {
+  min-width: 0;
+}
+
+.assistant-output {
+  max-height: 260px;
+  min-height: 126px;
+  overflow: auto;
+}
+
+.experience-dialog {
+  width: min(780px, calc(100% - 24px));
+  max-height: min(88dvh, 900px);
+  overflow: auto;
+}
+
+.dialog-card {
+  min-width: 0;
+}
+
+@media (max-width: 1350px) {
+  .resume-editor-shell {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    min-height: auto;
+  }
+
+  .source-pane,
+  .resume-pane {
+    min-height: calc(100dvh - 88px);
+  }
+
+  .ai-pane {
+    position: static;
+    grid-column: 1 / -1;
+    min-height: auto;
+    max-height: none;
+  }
+
+  .ai-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ai-insights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 880px) {
+  .workspace-page .topbar {
+    align-items: flex-start;
+  }
+
+  .workspace-top-actions {
+    justify-content: flex-end;
+  }
+
+  .resume-editor-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .source-pane,
+  .resume-pane,
+  .ai-pane {
+    position: static;
+    min-height: auto;
+    max-height: none;
+  }
+
+  .resume-pane {
+    overflow: visible;
+  }
+
+  .source-category-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-action-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .workspace-page .portal {
+    padding: 8px 12px;
+  }
+
+  .workspace-page .topbar {
+    flex-wrap: wrap;
+  }
+
+  .workspace-top-actions {
+    width: 100%;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .workspace-top-actions .top-action,
+  .workspace-top-actions .user-badge {
+    flex: 1 1 auto;
+    justify-content: center;
+    margin: 0;
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+
+  .workspace-home {
+    padding: 12px;
+  }
+
+  .library-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 22px;
+  }
+
+  .library-actions,
+  .library-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .library-actions .black-action {
+    flex: 1;
+  }
+
+  .resume-card {
+    min-height: 164px;
+    padding: 18px;
+  }
+
+  .resume-card strong {
+    white-space: normal;
+  }
+
+  .resume-pane {
+    padding: 16px;
+  }
+
+  .resume-name-input {
+    font-size: 26px;
+  }
+
+  .resume-contact-row,
+  .experience-type-grid,
+  .experience-template-fields,
+  .template-guide,
+  .ai-insights {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-section {
+    padding: 15px 0;
+  }
+
+  .resume-section textarea {
+    min-height: 132px;
+  }
+
+  .source-category-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .pane-header,
+  .dialog-head,
+  .dialog-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .source-add {
+    flex: 1 1 100%;
+  }
+
+  .experience-ai-actions button,
+  .dialog-actions button {
+    width: 100%;
+    margin-top: 0;
+  }
+}

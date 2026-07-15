@@ -60,6 +60,15 @@ class WebServerTest(unittest.TestCase):
         self.assertIn("grid-template-columns: 300px minmax(460px, 1fr) 340px", styles)
         self.assertIn(".experience-dialog", styles)
 
+    def test_workspace_layout_has_responsive_three_pane_rules(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("minmax(230px, 0.8fr) minmax(480px, 1.75fr) minmax(280px, 0.95fr)", styles)
+        self.assertIn("@media (max-width: 1350px)", styles)
+        self.assertIn("grid-column: 1 / -1", styles)
+        self.assertIn("@media (max-width: 880px)", styles)
+        self.assertIn(".resume-contact-row", styles)
+
     def test_health_and_generate_work_behind_base_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = WebAppConfig(
