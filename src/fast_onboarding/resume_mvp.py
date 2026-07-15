@@ -206,7 +206,7 @@ class ResumeGenerator:
 
     def _summary(self, profile: CandidateProfile, analysis: JDAnalysis) -> str:
         matched = self._rank_skills(profile.skills, analysis)[:5]
-        base = profile.summary or f"{profile.target_title or analysis.target_role} 候选人"
+        base = (profile.summary or f"{profile.target_title or analysis.target_role} 候选人").rstrip("。.!！")
         pain_focus = "、".join(analysis.pain_points[:2])
         if matched:
             detail = f"重点匹配：{'、'.join(matched)}。"

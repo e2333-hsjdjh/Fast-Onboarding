@@ -229,16 +229,15 @@
               <p id="experienceTemplateHint">请尽量填写可验证的信息，AI 后续只基于这些事实做整理和追问。</p>
             </div>
             <div class="form-grid two">
-              <label>记录标题<input id="experienceTitle" value="AI 简历生成器产品负责人" /></label>
-              <label>来源/组织<input id="experienceOrg" value="个人项目" /></label>
+              <label>记录标题<input id="experienceTitle" /></label>
+              <label>来源/组织<input id="experienceOrg" /></label>
               <label>类型<select id="experienceCategory"><option value="basic">基础信息</option><option value="education">教育经历</option><option value="work">工作经历</option><option value="project">项目经历</option><option value="award">获得奖项</option><option value="skill">技能与特长</option><option value="other">其他</option></select></label>
-              <label>技能<input id="experienceSkills" value="AI, LLM, ATS" /></label>
+              <label>技能<input id="experienceSkills" /></label>
             </div>
             <div id="experienceTemplateFields" class="experience-template-fields"></div>
             <div id="experienceTemplateGuide" class="template-guide"></div>
-            <label>补充事实与备注<textarea id="experienceBullets" class="medium">负责 JD 解析、ATS 检查和 Word 模板生成工作流设计
-建设 DeepSeek 驱动的简历改写 agent，提升岗位匹配效率</textarea></label>
-            <label>可量化结果/证明材料<textarea id="experienceMetrics">将简历初稿生成时间从 60 分钟压缩到 5 分钟</textarea></label>
+            <label>补充事实与备注<textarea id="experienceBullets" class="medium"></textarea></label>
+            <label>可量化结果/证明材料<textarea id="experienceMetrics"></textarea></label>
             <div class="experience-ai-actions">
               <button id="aiExtractExperienceBtn" type="button" class="secondary">AI 提取已填事实</button>
               <button id="aiPolishExperienceBtn" type="button">AI 生成润色建议稿</button>

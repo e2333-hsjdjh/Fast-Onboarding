@@ -126,6 +126,7 @@ class UserDatabaseTest(unittest.TestCase):
 
             test_user = db.login_user(email="test", password="test123")
             self.assertTrue(test_user["is_test"])
+            self.assertEqual(test_user["email"], "")
             session = db.create_session("test")
             self.assertEqual(db.get_session_user(session["token"])["user_id"], "test")
 

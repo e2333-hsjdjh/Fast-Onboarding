@@ -105,10 +105,14 @@ python3 scripts/serve_web.py \
 
 当前保存的数据：
 
-- `users`: 用户基础信息，包括姓名、邮箱、电话、城市、目标岗位。
+- `users`: 多账号基础信息、头像、目标岗位、语言/时区、偏好、最后登录与活跃时间。
+- `user_sessions`: 30 天持久登录会话；同一浏览器会自动恢复账号，不需要反复输入账号密码。
 - `resume_material_templates`: 详细素材采集模板，定义每类经历的必填项、证据和量化提示。
 - `resume_materials`: 用户长期维护的结构化经历素材，包括原始事实、工具、结果、量化信息和证明材料。
-- `application_projects`: 用户为某个公司某个岗位创建的求职项目，包括公司、岗位、JD、状态和备注。
+- `application_projects`: 每一份可编辑简历，包括公司、岗位、JD、状态、模板、语言、可见性、已选素材、正文、编辑偏好和导出设置。
+- `resume_versions`: 每份简历最近 3 个可恢复正文快照，默认保留 30 天；恢复旧版会产生一个新的当前版本。
+- `ai_interactions`: AI 填充、润色、追问和用户采纳状态的审计记录结构。
+- `export_jobs`: Word/PDF/分享导出任务、选项、文件路径和完成状态的记录结构。
 - `profile_snapshots`: 每次生成时的用户素材快照。
 - `job_descriptions`: 每次输入的 JD、目标岗位和 JD 分析结果。
 - `resume_generations`: 生成的简历 Markdown、ATS 报告和输出文件路径。
@@ -116,11 +120,18 @@ python3 scripts/serve_web.py \
 相关 API：
 
 - `POST /api/generate`: 生成简历并保存用户、JD、素材快照和生成记录。
+- `POST /api/auth/register`: 注册正式账号并创建会话。
+- `POST /api/auth/login`: 登录并创建 30 天会话。
+- `GET /api/auth/session/{token}`: 恢复已保存会话。
+- `POST /api/auth/test-session`: 进入内置 `test` 测试账号。
+- `POST /api/auth/test-reset`: 清空并恢复 `test` 账号的演示数据。
 - `GET /api/users/{user_id}`: 查询用户基础信息。
 - `POST /api/users/{user_id}/experiences`: 保存一条用户经历。
 - `GET /api/users/{user_id}/experiences`: 查询用户经历库。
 - `POST /api/users/{user_id}/projects`: 保存一个公司岗位求职项目。
 - `GET /api/users/{user_id}/projects`: 查询用户的岗位项目列表。
+- `GET /api/users/{user_id}/projects/{project_id}/versions`: 查询当前简历的可恢复版本。
+- `POST /api/users/{user_id}/projects/{project_id}/restore`: 恢复指定版本。
 - `POST /api/ai/autofill`: 基于用户已输入内容补全经历或岗位项目表单。
 - `POST /api/ai/polish-experience`: 仅基于当前经历事实生成待确认的润色建议稿。
 - `POST /api/ai/chat`: 基于当前工作区内容给出填写建议、真实性提醒和追问问题。
@@ -128,6 +139,10 @@ python3 scripts/serve_web.py \
 - `GET /api/users/{user_id}/generations`: 查询用户最近生成历史。
 
 如果部署在 `/resume` 子路径下，API 前缀也对应变为 `/resume/api/...`。
+
+### test 测试账号
+
+开发环境默认提供 `test` 账号，密码为 `test123`。首次打开工作区会自动进入该账号，后续由会话自动恢复，不需要重复登录。顶栏的“重置 test 数据”会清空该账号素材、简历、版本和记录，并创建一份新的演示简历；正式注册账号不会受到影响。
 
 ## Word 简历模板
 

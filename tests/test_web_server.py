@@ -48,6 +48,8 @@ class WebServerTest(unittest.TestCase):
         self.assertIn('id="resumeEditor"', workspace_html)
         self.assertIn('id="resumeCardGrid"', workspace_html)
         self.assertIn('id="experienceDialog"', workspace_html)
+        self.assertNotIn('value="AI 简历生成器产品负责人"', workspace_html)
+        self.assertNotIn('将简历初稿生成时间从 60 分钟压缩到 5 分钟', workspace_html)
         self.assertIn("source-pane", workspace_html)
         self.assertIn("resume-pane", workspace_html)
         self.assertIn("ai-pane", workspace_html)
@@ -151,6 +153,18 @@ class WebServerTest(unittest.TestCase):
                 session_body = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(response.status, 200)
                 self.assertTrue(session_body["user"]["is_test"])
+
+                conn.request("GET", "/resume/api/users/test/projects")
+                response = conn.getresponse()
+                test_projects_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertTrue(test_projects_body["projects"])
+                test_project = test_projects_body["projects"][0]
+                conn.request("GET", f"/resume/api/users/test/projects/{test_project['project_id']}/versions")
+                response = conn.getresponse()
+                versions_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertTrue(versions_body["versions"])
 
                 register_payload = {
                     "name": "李四",

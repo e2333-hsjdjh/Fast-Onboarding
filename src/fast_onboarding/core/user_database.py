@@ -999,7 +999,7 @@ class UserDatabase:
                         avatar_initials, is_test, account_status, created_at, updated_at, last_login_at, last_active_at
                     ) values (?, ?, ?, ?, ?, ?, ?, 1, 'active', ?, ?, ?, ?)
                     """,
-                    (self.TEST_USER_ID, "test", "test", "AI 产品经理", self._hash_password(self.TEST_USER_PASSWORD, salt),
+                    (self.TEST_USER_ID, "test", "", "AI 产品经理", self._hash_password(self.TEST_USER_PASSWORD, salt),
                      salt, "TE", now, now, now, now),
                 )
                 seed_demo = True

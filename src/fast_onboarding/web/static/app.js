@@ -324,11 +324,11 @@ function setAuthMode(mode) {
 
 function applyUserToProfile(user) {
   $('userId').value = user.user_id || '';
-  $('name').value = user.name || $('name').value;
-  $('email').value = user.email || $('email').value;
-  $('targetTitle').value = user.target_title || $('targetTitle').value;
-  $('phone').value = user.phone || $('phone').value;
-  $('location').value = user.location || $('location').value;
+  $('name').value = user.name || '';
+  $('email').value = user.email || '';
+  $('targetTitle').value = user.target_title || '';
+  $('phone').value = user.phone || '';
+  $('location').value = user.location || '';
   $('savedUser').textContent = user.user_id || '未保存';
 }
 
