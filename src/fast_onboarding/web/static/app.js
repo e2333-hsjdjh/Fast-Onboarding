@@ -5,11 +5,13 @@ const state = {
   experiences: [],
   projects: [],
   currentUser: null,
+  session: null,
   activeProject: null,
-  sourceCategory: 'basic'
+  sourceCategory: 'basic',
+  experienceAiDraft: []
 };
 
-const sessionKey = 'fastOnboarding.currentUser';
+const sessionKey = 'fastOnboarding.session';
 const categoryLabels = {
   basic: '基础信息',
   education: '教育经历',
@@ -158,13 +160,33 @@ const experienceTemplates = {
   }
 };
 
+const universalExperienceQuestions = [
+  '发生在哪里？',
+  '你是什么身份？',
+  '时间是什么时候？',
+  '背景/问题是什么？',
+  '你的任务是什么？',
+  '你做了哪些动作？',
+  '用了什么工具或方法？',
+  '最终产出了什么？',
+  '结果怎么样？',
+  '有没有数字证明？',
+  '和目标岗位有什么关系？'
+];
+
+const bulletFormulaHints = [
+  '通过【方法/工具】完成【任务】，实现【结果】',
+  '针对【问题】，优化【方案】，使【指标】提升/降低【数字】',
+  '使用【工具】分析【数据对象】，识别【问题/机会】，输出【建议】',
+  '基于【技术/框架】开发【系统/功能】，实现【功能效果】'
+];
+
 function splitValues(text) {
   return text.split(/[,，、\n]/).map((item) => item.trim()).filter(Boolean);
 }
 
 function openUserExperiences() {
   if (!state.currentUser) return;
-  if (!state.activeProject) createNewResume();
   showWorkspaceView('editor');
   setSourceCategory('basic');
   $('status').textContent = '正在编辑个人经历';
@@ -178,6 +200,7 @@ function showWorkspaceView(view) {
   $('workspaceTitle').textContent = showEditor ? resumeTitle() : 'FastOnboarding';
   $('topCreateResumeBtn').hidden = !showEditor;
   $('topAddExperienceBtn').hidden = !showEditor;
+  $('versionHistoryBtn').hidden = !showEditor;
   $('exportBtn').hidden = !showEditor;
 }
 
@@ -187,16 +210,96 @@ function resumeTitle(project = state.activeProject) {
 }
 
 function createNewResume() {
-  state.activeProject = {
-    company_name: '示例科技',
-    role_title: $('targetTitle') ? $('targetTitle').value || 'AI 产品经理' : 'AI 产品经理',
-    jd_text: $('jdText') ? $('jdText').value : '',
-    status: 'draft',
-    notes: ''
-  };
-  activateProject(state.activeProject);
-  showWorkspaceView('editor');
-  $('status').textContent = '正在编辑新简历';
+  requireUser();
+  $('newResumeCompany').value = '';
+  $('newResumeRole').value = $('targetTitle') ? $('targetTitle').value || '' : '';
+  $('newResumeTitle').value = '';
+  $('newResumeJd').value = '';
+  $('newResumeDialog').showModal();
+}
+
+async function submitNewResume() {
+  const companyName = $('newResumeCompany').value.trim();
+  const roleTitle = $('newResumeRole').value.trim();
+  if (!companyName || !roleTitle) {
+    $('status').textContent = '请填写公司名称和目标岗位';
+    return;
+  }
+  const button = $('submitNewResumeBtn');
+  button.disabled = true;
+  try {
+    const data = await requestJson(`/api/users/${encodeURIComponent(activeUserId())}/projects`, {
+      method: 'POST',
+      body: JSON.stringify({
+        user_name: $('name').value,
+        company_name: companyName,
+        role_title: roleTitle,
+        document_title: $('newResumeTitle').value.trim() || `${companyName}-${roleTitle}`,
+        template_id: $('newResumeTemplate').value,
+        language: $('newResumeLanguage').value,
+        visibility: $('newResumeVisibility').value,
+        jd_text: $('newResumeJd').value.trim(),
+        status: 'draft',
+        notes: '',
+        resume_content: { sections: {} },
+        change_summary: '创建简历'
+      })
+    });
+    if ($('newResumeDialog').open) $('newResumeDialog').close();
+    await loadUserWorkspace(activeUserId());
+    activateProject(data.project);
+    $('status').textContent = '新简历已创建';
+  } catch (error) {
+    $('status').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function openVersionHistory() {
+  if (!state.activeProject) {
+    $('status').textContent = '请先创建或打开一份简历';
+    return;
+  }
+  const list = $('versionHistoryList');
+  list.innerHTML = '';
+  try {
+    const data = await requestJson(`/api/users/${encodeURIComponent(activeUserId())}/projects/${encodeURIComponent(state.activeProject.project_id)}/versions`);
+    for (const version of data.versions || []) {
+      const item = document.createElement('li');
+      const title = document.createElement('strong');
+      title.textContent = `版本 ${version.version_number}`;
+      const meta = document.createElement('span');
+      meta.className = 'record-meta';
+      meta.textContent = `${version.change_summary || '保存简历'} · ${version.created_at}`;
+      const restore = document.createElement('button');
+      restore.type = 'button';
+      restore.className = 'insert-experience-btn';
+      restore.textContent = '恢复此版本';
+      restore.addEventListener('click', () => restoreVersion(version.version_id));
+      item.append(title, meta, restore);
+      list.appendChild(item);
+    }
+    if (!list.childElementCount) list.textContent = '还没有可恢复版本。';
+    $('versionHistoryDialog').showModal();
+  } catch (error) {
+    $('status').textContent = error.message;
+  }
+}
+
+async function restoreVersion(versionId) {
+  try {
+    const data = await requestJson(`/api/users/${encodeURIComponent(activeUserId())}/projects/${encodeURIComponent(state.activeProject.project_id)}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ version_id: versionId })
+    });
+    await loadUserWorkspace(activeUserId());
+    activateProject(data.project);
+    if ($('versionHistoryDialog').open) $('versionHistoryDialog').close();
+    $('status').textContent = '已恢复历史版本，并创建新的当前版本';
+  } catch (error) {
+    $('status').textContent = error.message;
+  }
 }
 
 function activeUserId() {
@@ -229,15 +332,17 @@ function applyUserToProfile(user) {
   $('savedUser').textContent = user.user_id || '未保存';
 }
 
-async function activateUser(user) {
+async function activateUser(user, session = null) {
   state.currentUser = user;
-  localStorage.setItem(sessionKey, JSON.stringify(user));
+  state.session = session || state.session;
+  if (state.session) localStorage.setItem(sessionKey, JSON.stringify(state.session));
   $('authGate').hidden = true;
   $('workspace').hidden = false;
   $('userBadge').hidden = false;
   $('logoutBtn').hidden = false;
   $('userAvatar').textContent = user.avatar_initials || 'U';
   $('userNameLabel').textContent = user.name || user.email || user.user_id;
+  $('resetTestAccountBtn').hidden = !user.is_test;
   applyUserToProfile(user);
   renderExperiences();
   renderProjects();
@@ -247,6 +352,7 @@ async function activateUser(user) {
 
 function logout() {
   state.currentUser = null;
+  state.session = null;
   state.experiences = [];
   state.projects = [];
   state.activeProject = null;
@@ -256,6 +362,7 @@ function logout() {
   $('userBadge').hidden = true;
   $('logoutBtn').hidden = true;
   $('savedUser').textContent = '未保存';
+  $('resetTestAccountBtn').hidden = true;
   renderExperiences();
   renderProjects();
   setAuthMode('login');
@@ -274,7 +381,7 @@ async function register(event) {
         target_title: $('registerTargetTitle').value
       })
     });
-    await activateUser(data.user);
+    await activateUser(data.user, data.session);
     $('status').textContent = '账号已创建';
   } catch (error) {
     $('authStatus').textContent = error.message;
@@ -292,7 +399,7 @@ async function login(event) {
         password: $('loginPassword').value
       })
     });
-    await activateUser(data.user);
+    await activateUser(data.user, data.session);
     $('status').textContent = '已登录';
   } catch (error) {
     $('authStatus').textContent = error.message;
@@ -302,13 +409,46 @@ async function login(event) {
 async function restoreSession() {
   const raw = localStorage.getItem(sessionKey);
   if (!raw) {
-    logout();
+    await loginTestAccount();
     return;
   }
   try {
-    await activateUser(JSON.parse(raw));
+    const stored = JSON.parse(raw);
+    const data = await requestJson(`/api/auth/session/${encodeURIComponent(stored.token)}`);
+    await activateUser(data.user, stored);
   } catch (error) {
     logout();
+  }
+}
+
+async function loginTestAccount() {
+  try {
+    const data = await requestJson('/api/auth/test-session', { method: 'POST', body: JSON.stringify({}) });
+    await activateUser(data.user, data.session);
+    $('status').textContent = '已进入 test 测试账号';
+  } catch (error) {
+    $('authStatus').textContent = error.message;
+  }
+}
+
+async function resetTestAccount() {
+  if (!state.currentUser || !state.currentUser.is_test) return;
+  const button = $('resetTestAccountBtn');
+  button.disabled = true;
+  try {
+    const data = await requestJson('/api/auth/test-reset', { method: 'POST', body: JSON.stringify({}) });
+    state.experiences = [];
+    state.projects = data.projects || [];
+    state.activeProject = null;
+    applyUserToProfile(data.user);
+    renderExperiences();
+    renderProjects();
+    showWorkspaceView('library');
+    $('status').textContent = 'test 数据已重置为演示内容';
+  } catch (error) {
+    $('status').textContent = error.message;
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -336,7 +476,26 @@ function currentProjectPayload() {
     role_title: $('projectRole').value,
     jd_text: $('jdText').value,
     status: $('projectStatus').value,
-    notes: $('projectNotes').value
+    notes: $('projectNotes').value,
+    document_title: state.activeProject ? state.activeProject.document_title : '',
+    template_id: state.activeProject ? state.activeProject.template_id : 'zsc_table_resume',
+    language: state.activeProject ? state.activeProject.language : 'zh-CN',
+    visibility: state.activeProject ? state.activeProject.visibility : 'private',
+    selected_material_ids: state.experiences.map((item) => item.material_id || item.experience_id),
+    resume_content: {
+      name: $('name').value,
+      target_title: $('targetTitle').value,
+      summary: $('summary').value,
+      education: $('educationText').value,
+      work: $('workResumeText').value,
+      projects: $('projectResumeText').value,
+      awards: $('awardResumeText').value,
+      skills: $('skills').value,
+      other: $('otherResumeText').value
+    },
+    editor_preferences: { view: 'three-pane' },
+    export_settings: { formats: ['docx', 'pdf'] },
+    change_summary: '保存工作区编辑'
   };
 }
 
@@ -532,6 +691,14 @@ function activateProject(project) {
   $('jdText').value = project.jd_text || '';
   $('projectStatus').value = project.status || 'draft';
   $('projectNotes').value = project.notes || '';
+  const content = project.resume_content || {};
+  if (content.summary) $('summary').value = content.summary;
+  if (content.education) $('educationText').value = content.education;
+  if (content.work) $('workResumeText').value = content.work;
+  if (content.projects) $('projectResumeText').value = content.projects;
+  if (content.awards) $('awardResumeText').value = content.awards;
+  if (content.skills) $('skills').value = content.skills;
+  if (content.other) $('otherResumeText').value = content.other;
   showWorkspaceView('editor');
   $('status').textContent = `正在编辑：${resumeTitle(project)}`;
 }
@@ -620,7 +787,35 @@ function renderExperienceTemplate(category) {
     fieldLabel.appendChild(field);
     target.appendChild(fieldLabel);
   });
+  renderTemplateGuide();
   hydrateTemplateDefaults(normalized);
+}
+
+function renderTemplateGuide() {
+  const target = $('experienceTemplateGuide');
+  target.innerHTML = '';
+  const questionBlock = document.createElement('section');
+  const questionTitle = document.createElement('h4');
+  questionTitle.textContent = '采集追问';
+  const questionList = document.createElement('div');
+  questionList.className = 'guide-chip-list';
+  universalExperienceQuestions.forEach((question) => {
+    const chip = document.createElement('span');
+    chip.textContent = question;
+    questionList.appendChild(chip);
+  });
+  questionBlock.append(questionTitle, questionList);
+  const formulaBlock = document.createElement('section');
+  const formulaTitle = document.createElement('h4');
+  formulaTitle.textContent = '简历 bullet 句式';
+  const formulaList = document.createElement('ul');
+  bulletFormulaHints.forEach((formula) => {
+    const item = document.createElement('li');
+    item.textContent = formula;
+    formulaList.appendChild(item);
+  });
+  formulaBlock.append(formulaTitle, formulaList);
+  target.append(questionBlock, formulaBlock);
 }
 
 function hydrateTemplateDefaults(category) {
@@ -676,6 +871,17 @@ function fillListField(id, value) {
   }
 }
 
+function mergeListField(id, value) {
+  const target = $(id);
+  const existing = target.value.split('\n').map((line) => line.trim()).filter(Boolean);
+  const incoming = Array.isArray(value) ? value : String(value || '').split('\n');
+  const merged = [...existing];
+  incoming.map((item) => String(item).trim()).filter(Boolean).forEach((item) => {
+    if (!merged.includes(item)) merged.push(item);
+  });
+  target.value = merged.join('\n');
+}
+
 function renderAiResult(ai) {
   $('aiReply').textContent = ai.reply || ai.authenticity_notice || '已完成';
   renderSkillChips(ai.selected_skills || []);
@@ -722,6 +928,78 @@ async function aiAutofill(target) {
   } catch (error) {
     $('status').textContent = error.message;
   }
+}
+
+function renderExperienceAiDraft(ai) {
+  const draft = $('experienceAiDraft');
+  const bullets = (ai.polished_bullets || []).filter(Boolean);
+  state.experienceAiDraft = bullets;
+  $('experienceAiSummary').textContent = ai.summary || '请核对这份建议稿是否准确反映你的真实经历。';
+  $('experienceAiNotice').textContent = ai.authenticity_notice || '';
+  const list = $('experienceAiBullets');
+  list.innerHTML = '';
+  for (const bullet of bullets) {
+    const item = document.createElement('li');
+    item.textContent = bullet;
+    list.appendChild(item);
+  }
+  if (!bullets.length) {
+    const item = document.createElement('li');
+    item.textContent = '信息还不足以生成建议稿，请先回答 AI 的追问。';
+    list.appendChild(item);
+  }
+  draft.hidden = false;
+  renderAiResult({
+    reply: ai.summary,
+    questions: ai.questions,
+    evidence_warnings: ai.evidence_warnings,
+    authenticity_notice: ai.authenticity_notice,
+    confidence: ai.requires_confirmation ? '待用户确认' : '已完成'
+  });
+}
+
+async function aiExtractExperience() {
+  $('status').textContent = 'AI 正在提取已填事实';
+  try {
+    const data = await requestJson('/api/ai/autofill', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'experience', context: workspaceContext() })
+    });
+    const fields = data.ai.suggested_fields || {};
+    mergeListField('experienceBullets', fields.bullets);
+    mergeListField('experienceMetrics', fields.metrics);
+    if (!$('experienceSkills').value.trim() && fields.skills) {
+      $('experienceSkills').value = Array.isArray(fields.skills) ? fields.skills.join(', ') : String(fields.skills);
+    }
+    renderAiResult(data.ai);
+    $('status').textContent = '已提取现有事实，未新增任何经历信息';
+  } catch (error) {
+    $('status').textContent = error.message;
+  }
+}
+
+async function aiPolishExperience() {
+  $('aiPolishExperienceBtn').disabled = true;
+  $('status').textContent = 'AI 正在生成待确认润色稿';
+  try {
+    const data = await requestJson('/api/ai/polish-experience', {
+      method: 'POST',
+      body: JSON.stringify({ context: workspaceContext() })
+    });
+    renderExperienceAiDraft(data.ai);
+    $('status').textContent = data.ai.polished_bullets.length ? '润色建议稿已生成，请核对后采纳' : 'AI 需要更多真实素材';
+  } catch (error) {
+    $('status').textContent = error.message;
+  } finally {
+    $('aiPolishExperienceBtn').disabled = false;
+  }
+}
+
+function applyExperienceAiDraft() {
+  if (!state.experienceAiDraft.length) return;
+  $('experienceBullets').value = state.experienceAiDraft.join('\n');
+  $('experienceAiDraft').hidden = true;
+  $('status').textContent = '已采纳建议稿。保存前请再次确认每条均为真实事实。';
 }
 
 async function aiReview() {
@@ -896,8 +1174,13 @@ $('generateBtn').addEventListener('click', generate);
 $('createResumeBtn').addEventListener('click', createNewResume);
 $('topCreateResumeBtn').addEventListener('click', createNewResume);
 $('newResumeCard').addEventListener('click', createNewResume);
+$('submitNewResumeBtn').addEventListener('click', submitNewResume);
+$('closeNewResumeDialogBtn').addEventListener('click', () => $('newResumeDialog').close());
+$('cancelNewResumeBtn').addEventListener('click', () => $('newResumeDialog').close());
+$('closeVersionHistoryDialogBtn').addEventListener('click', () => $('versionHistoryDialog').close());
 $('addExperienceBtn').addEventListener('click', () => openExperienceDialog());
 $('topAddExperienceBtn').addEventListener('click', () => openExperienceDialog());
+$('versionHistoryBtn').addEventListener('click', openVersionHistory);
 $('exportBtn').addEventListener('click', () => {
   generate();
 });
@@ -911,13 +1194,18 @@ $('aiFilterBtn').addEventListener('click', () => {
   for (const item of state.experiences) insertExperienceToResume(item);
 });
 $('aiExperienceBtn').addEventListener('click', () => aiAutofill('experience'));
+$('aiExtractExperienceBtn').addEventListener('click', aiExtractExperience);
+$('aiPolishExperienceBtn').addEventListener('click', aiPolishExperience);
+$('applyExperienceAiDraftBtn').addEventListener('click', applyExperienceAiDraft);
 $('aiProjectBtn').addEventListener('click', () => aiAutofill('project'));
 $('aiReviewBtn').addEventListener('click', aiReview);
 $('showLoginBtn').addEventListener('click', () => setAuthMode('login'));
 $('showRegisterBtn').addEventListener('click', () => setAuthMode('register'));
+$('testLoginBtn').addEventListener('click', loginTestAccount);
 $('loginForm').addEventListener('submit', login);
 $('registerForm').addEventListener('submit', register);
 $('logoutBtn').addEventListener('click', logout);
+$('resetTestAccountBtn').addEventListener('click', resetTestAccount);
 $('userBadge').addEventListener('click', openUserExperiences);
 document.querySelectorAll('[data-source-category]').forEach((button) => {
   button.addEventListener('click', () => setSourceCategory(button.dataset.sourceCategory));

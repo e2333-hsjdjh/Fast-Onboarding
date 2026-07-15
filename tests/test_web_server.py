@@ -79,6 +79,13 @@ class WebServerTest(unittest.TestCase):
                 health = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(health["base_path"], "/resume")
 
+                conn.request("GET", "/resume/api/material-templates")
+                response = conn.getresponse()
+                templates_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertIn("templates", templates_body)
+                self.assertTrue(any(item["template_key"] == "work_result" for item in templates_body["templates"]))
+
                 conn.request("HEAD", "/resume/")
                 response = conn.getresponse()
                 self.assertEqual(response.status, 200)
@@ -124,6 +131,26 @@ class WebServerTest(unittest.TestCase):
                 self.assertIn('href="/resume/"', workspace_html)
                 self.assertIn('id="authGate"', workspace_html)
                 self.assertIn('id="userBadge"', workspace_html)
+                self.assertIn('id="newResumeDialog"', workspace_html)
+                self.assertIn('id="testLoginBtn"', workspace_html)
+
+                conn.request(
+                    "POST",
+                    "/resume/api/auth/test-session",
+                    json.dumps({}).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                test_session_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(test_session_body["user"]["user_id"], "test")
+                self.assertTrue(test_session_body["session"]["token"])
+
+                conn.request("GET", f"/resume/api/auth/session/{test_session_body['session']['token']}")
+                response = conn.getresponse()
+                session_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertTrue(session_body["user"]["is_test"])
 
                 register_payload = {
                     "name": "李四",
@@ -173,6 +200,18 @@ class WebServerTest(unittest.TestCase):
                 ai_body = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(response.status, 200)
                 self.assertIn("authenticity_notice", ai_body["ai"])
+
+                conn.request(
+                    "POST",
+                    "/resume/api/ai/polish-experience",
+                    json.dumps({"context": ai_payload["context"]}).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                polish_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertTrue(polish_body["ai"]["requires_confirmation"])
+                self.assertIn("负责 DeepSeek 驱动的简历改写 agent", polish_body["ai"]["polished_bullets"])
 
                 conn.request(
                     "POST",

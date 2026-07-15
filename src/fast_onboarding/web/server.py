@@ -54,6 +54,17 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if route == "/api/health":
                 self._send_json({"status": "ok", "base_path": config.base_path})
                 return
+            if route == "/api/material-templates":
+                self._send_json({"templates": UserDatabase(config.database_path).list_material_templates()})
+                return
+            if route.startswith("/api/auth/session/"):
+                token = unquote(route.removeprefix("/api/auth/session/"))
+                user = UserDatabase(config.database_path).get_session_user(token)
+                if not user:
+                    self._send_json({"error": "session_expired"}, status=401)
+                    return
+                self._send_json({"user": user})
+                return
             if route.startswith("/api/users/"):
                 self._handle_user_get(route)
                 return
@@ -158,14 +169,20 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                         password=str(payload.get("password", "")),
                         target_title=str(payload.get("target_title", "")),
                     )
-                    self._send_json({"user": user})
+                    self._send_json({"user": user, "session": db.create_session(user["user_id"])})
                     return
                 if route == "/api/auth/login":
-                    user = db.login_user(
-                        email=str(payload.get("email", "")),
+                    login = db.login_with_session(
+                        identifier=str(payload.get("email", "")),
                         password=str(payload.get("password", "")),
                     )
-                    self._send_json({"user": user})
+                    self._send_json(login)
+                    return
+                if route == "/api/auth/test-session":
+                    self._send_json(db.create_test_session())
+                    return
+                if route == "/api/auth/test-reset":
+                    self._send_json(db.reset_test_account())
                     return
                 self._send_json({"error": "not_found"}, status=404)
             except ValueError as exc:
@@ -181,6 +198,10 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     target = str(payload.get("target", "experience"))
                     context = dict(payload.get("context") or {})
                     self._send_json({"ai": assistant.autofill(context, target=target)})
+                    return
+                if route == "/api/ai/polish-experience":
+                    context = dict(payload.get("context") or {})
+                    self._send_json({"ai": assistant.polish_experience(context)})
                     return
                 if route == "/api/ai/chat/stream":
                     context = dict(payload.get("context") or {})
@@ -200,7 +221,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
 
         def _handle_user_post(self, route: str) -> None:
             parts = [part for part in route.split("/") if part]
-            if len(parts) != 4:
+            if len(parts) < 4:
                 self._send_json({"error": "not_found"}, status=404)
                 return
             user_id = unquote(parts[2])
@@ -212,6 +233,9 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     if not str(payload.get("title", "")).strip():
                         raise ValueError("title is required")
                     self._send_json({"experience": db.save_experience(user_id, payload)})
+                    return
+                if resource == "projects" and len(parts) == 6 and parts[5] == "restore":
+                    self._send_json({"project": db.restore_project_version(user_id, parts[4], str(payload.get("version_id", "")))})
                     return
                 if resource == "projects":
                     if not str(payload.get("company_name", "")).strip():
@@ -269,6 +293,16 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 return
             if len(parts) == 4 and parts[3] == "projects":
                 self._send_json({"projects": db.list_projects(user_id)})
+                return
+            if len(parts) == 5 and parts[3] == "projects":
+                project = db.get_project(user_id, parts[4])
+                if not project:
+                    self._send_json({"error": "project_not_found"}, status=404)
+                    return
+                self._send_json({"project": project})
+                return
+            if len(parts) == 6 and parts[3] == "projects" and parts[5] == "versions":
+                self._send_json({"versions": db.list_project_versions(user_id, parts[4])})
                 return
             self._send_json({"error": "not_found"}, status=404)
 

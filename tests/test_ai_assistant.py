@@ -65,6 +65,45 @@ class WorkspaceAIAssistantTest(unittest.TestCase):
 
         self.assertEqual(result["suggestions"], ["建议补充真实可核实数字，但不要使用 AI 示例百分比、数量或结果。"])
 
+    def test_polish_returns_reviewable_existing_facts_only(self):
+        assistant = WorkspaceAIAssistant()
+
+        result = assistant.polish_experience(
+            {
+                "experience": {
+                    "bullets": ["使用 SQL 分析用户漏斗", "完成周度复盘报告"],
+                    "metrics": [],
+                }
+            }
+        )
+
+        self.assertEqual(result["polished_bullets"], ["使用 SQL 分析用户漏斗", "完成周度复盘报告"])
+        self.assertTrue(result["requires_confirmation"])
+        self.assertTrue(result["questions"])
+        self.assertEqual(result["authenticity_notice"], AUTHENTICITY_NOTICE)
+
+    def test_polish_does_not_create_content_when_no_facts_exist(self):
+        assistant = WorkspaceAIAssistant()
+
+        result = assistant.polish_experience({"experience": {}})
+
+        self.assertEqual(result["polished_bullets"], [])
+        self.assertTrue(result["questions"])
+
+    def test_polish_rejects_unsupported_stronger_claims(self):
+        assistant = WorkspaceAIAssistant()
+
+        result = assistant._sanitize_polish_payload(
+            {"experience": {"bullets": ["负责 SQL 数据分析"]}},
+            {
+                "summary": "主导分析并显著提升业务效率",
+                "polished_bullets": ["主导 SQL 数据分析，显著提升业务效率"],
+            },
+        )
+
+        self.assertEqual(result["polished_bullets"], ["负责 SQL 数据分析"])
+        self.assertEqual(result["summary"], "以下建议稿只整理你已填写的事实，请核对后再采纳。")
+
 
 if __name__ == "__main__":
     unittest.main()

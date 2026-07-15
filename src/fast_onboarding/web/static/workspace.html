@@ -16,6 +16,7 @@
         <div class="workspace-top-actions">
           <button id="topCreateResumeBtn" type="button" class="top-action" hidden>创建新的简历</button>
           <button id="topAddExperienceBtn" type="button" class="top-action" hidden>补充经历</button>
+          <button id="versionHistoryBtn" type="button" class="top-action" hidden>历史版本</button>
           <button id="exportBtn" type="button" class="top-action" hidden>分享与导出</button>
           <button id="userBadge" type="button" class="user-badge" aria-label="修改用户经历" title="修改用户经历" hidden>
             <span id="userAvatar" class="user-avatar">FO</span>
@@ -40,9 +41,10 @@
             <button id="showRegisterBtn" type="button" class="auth-tab">注册</button>
           </div>
           <form id="loginForm" class="auth-form">
-            <label>邮箱<input id="loginEmail" type="email" autocomplete="email" value="zhangsan@example.com" /></label>
-            <label>密码<input id="loginPassword" type="password" autocomplete="current-password" value="123456" /></label>
+            <label>邮箱或账号<input id="loginEmail" autocomplete="username" value="test" /></label>
+            <label>密码<input id="loginPassword" type="password" autocomplete="current-password" value="test123" /></label>
             <button type="submit">进入工作区</button>
+            <button id="testLoginBtn" type="button" class="secondary">进入 test 测试账号</button>
           </form>
           <form id="registerForm" class="auth-form hidden">
             <label>姓名<input id="registerName" autocomplete="name" value="张三" /></label>
@@ -64,11 +66,12 @@
             <button type="button" class="library-tab">我的简历</button>
             <button type="button" class="library-tab">精选模板</button>
           </div>
-          <div class="library-actions">
+        <div class="library-actions">
             <button id="librarySearchBtn" type="button" class="round-action" aria-label="搜索简历">⌕</button>
             <button id="libraryGridBtn" type="button" class="segmented active" aria-label="卡片视图">▦</button>
             <button id="libraryListBtn" type="button" class="segmented" aria-label="列表视图">☰</button>
-            <button id="createResumeBtn" type="button" class="black-action">+ 新建</button>
+          <button id="createResumeBtn" type="button" class="black-action">+ 新建</button>
+          <button id="resetTestAccountBtn" type="button" class="secondary" hidden>重置 test 数据</button>
           </div>
         </div>
         <div class="library-heading">
@@ -232,14 +235,66 @@
               <label>技能<input id="experienceSkills" value="AI, LLM, ATS" /></label>
             </div>
             <div id="experienceTemplateFields" class="experience-template-fields"></div>
+            <div id="experienceTemplateGuide" class="template-guide"></div>
             <label>补充事实与备注<textarea id="experienceBullets" class="medium">负责 JD 解析、ATS 检查和 Word 模板生成工作流设计
 建设 DeepSeek 驱动的简历改写 agent，提升岗位匹配效率</textarea></label>
             <label>可量化结果/证明材料<textarea id="experienceMetrics">将简历初稿生成时间从 60 分钟压缩到 5 分钟</textarea></label>
+            <div class="experience-ai-actions">
+              <button id="aiExtractExperienceBtn" type="button" class="secondary">AI 提取已填事实</button>
+              <button id="aiPolishExperienceBtn" type="button">AI 生成润色建议稿</button>
+            </div>
+            <section id="experienceAiDraft" class="experience-ai-draft" hidden aria-live="polite">
+              <div>
+                <p class="eyebrow">AI Draft</p>
+                <h4>待确认润色稿</h4>
+              </div>
+              <p id="experienceAiSummary"></p>
+              <ul id="experienceAiBullets"></ul>
+              <p id="experienceAiNotice" class="auth-note"></p>
+              <button id="applyExperienceAiDraftBtn" type="button" class="secondary">采纳润色稿</button>
+            </section>
             <div class="dialog-actions">
               <button id="backExperienceTypesBtn" type="button" class="secondary">返回分类</button>
               <button id="saveExperienceBtn" type="button">保存经历</button>
             </div>
           </div>
+        </form>
+      </dialog>
+
+      <dialog id="newResumeDialog" class="experience-dialog">
+        <form method="dialog" class="dialog-card">
+          <div class="dialog-head">
+            <div>
+              <p class="eyebrow">Resume</p>
+              <h2>新建简历</h2>
+            </div>
+            <button id="closeNewResumeDialogBtn" type="button" class="round-action" aria-label="关闭">×</button>
+          </div>
+          <p class="auth-note">每份简历对应一个目标公司与岗位，后续正文、AI 建议、版本和导出记录都会独立保存。</p>
+          <div class="form-grid two">
+            <label>公司名称<input id="newResumeCompany" required placeholder="例如 字节跳动" /></label>
+            <label>目标岗位<input id="newResumeRole" required placeholder="例如 AI 产品经理" /></label>
+            <label>简历名称<input id="newResumeTitle" placeholder="默认：公司-岗位" /></label>
+            <label>模板<select id="newResumeTemplate"><option value="zsc_table_resume">中文紧凑模板</option></select></label>
+            <label>简历语言<select id="newResumeLanguage"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label>
+            <label>可见性<select id="newResumeVisibility"><option value="private">仅自己可见</option><option value="link">生成分享链接后可见</option></select></label>
+          </div>
+          <label>岗位 JD<textarea id="newResumeJd" class="medium" placeholder="粘贴真实岗位描述，AI 才能进行岗位匹配与内容筛选。"></textarea></label>
+          <div class="dialog-actions">
+            <button id="cancelNewResumeBtn" type="button" class="secondary">取消</button>
+            <button id="submitNewResumeBtn" type="button">创建并进入编辑</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="versionHistoryDialog" class="experience-dialog">
+        <form method="dialog" class="dialog-card">
+          <div class="dialog-head">
+            <div><p class="eyebrow">Versions</p><h2>历史版本</h2></div>
+            <button id="closeVersionHistoryDialogBtn" type="button" class="round-action" aria-label="关闭">×</button>
+          </div>
+          <p class="auth-note">最多保留最近 3 个版本，每个版本保留 30 天。恢复操作会新建一个版本，不会覆盖当前历史。</p>
+          <ol id="versionHistoryList" class="record-list source-records"></ol>
         </form>
       </dialog>
 

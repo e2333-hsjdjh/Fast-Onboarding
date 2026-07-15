@@ -69,16 +69,37 @@ class UserDatabaseTest(unittest.TestCase):
             )
 
             self.assertEqual(experience["user_id"], "zhangsan@example.com")
+            self.assertEqual(experience["module"], "项目经历")
+            self.assertEqual(experience["subsection"], "项目经历")
             self.assertEqual(experience["template_key"], "project")
             self.assertEqual(experience["template_data"]["problem"], "注册后留存低")
             self.assertEqual(experience["evidence"], ["https://example.com/project"])
             self.assertEqual(project["user_id"], "zhangsan@example.com")
             self.assertEqual(db.list_experiences("zhangsan@example.com")[0]["metrics"], ["转化率提升 18%"])
+            self.assertEqual(db.list_experiences("zhangsan@example.com")[0]["material_sections"]["results"], ["转化率提升 18%"])
             self.assertEqual(
                 db.list_experiences("zhangsan@example.com")[0]["template_data"]["result_metrics"],
                 "转化率提升 18%",
             )
             self.assertEqual(db.list_projects("zhangsan@example.com")[0]["company_name"], "示例科技")
+
+    def test_seeds_detailed_resume_material_templates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = UserDatabase(Path(tmp) / "users.sqlite3")
+
+            templates = db.list_material_templates()
+            keys = {template["template_key"] for template in templates}
+
+            self.assertIn("basic", keys)
+            self.assertIn("education_courses", keys)
+            self.assertIn("work_result", keys)
+            self.assertIn("project", keys)
+            self.assertIn("other", keys)
+            project = next(template for template in templates if template["template_key"] == "project")
+            self.assertIn("项目名称", project["required_content"])
+            self.assertIn("数据规模", project["quantifiable_info"])
+            self.assertIn("这段经历发生在哪里？", project["universal_questions"])
+            self.assertTrue(project["bullet_formulas"])
 
     def test_registers_and_logs_in_user_without_exposing_password_hash(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,6 +119,44 @@ class UserDatabaseTest(unittest.TestCase):
             self.assertEqual(logged_in["name"], "张三")
             with self.assertRaises(ValueError):
                 db.login_user(email="zhangsan@example.com", password="wrong-password")
+
+    def test_test_account_sessions_and_resume_versions_are_persistent_and_bounded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = UserDatabase(Path(tmp) / "users.sqlite3")
+
+            test_user = db.login_user(email="test", password="test123")
+            self.assertTrue(test_user["is_test"])
+            session = db.create_session("test")
+            self.assertEqual(db.get_session_user(session["token"])["user_id"], "test")
+
+            project = db.save_project(
+                "test",
+                {
+                    "company_name": "示例公司",
+                    "role_title": "产品经理",
+                    "document_title": "示例公司-产品经理",
+                    "jd_text": "负责产品规划。",
+                    "resume_content": {"summary": "第一版"},
+                },
+            )
+            for number in range(2, 6):
+                project = db.save_project(
+                    "test",
+                    {
+                        **project,
+                        "resume_content": {"summary": f"第 {number} 版"},
+                        "change_summary": f"保存第 {number} 版",
+                    },
+                )
+
+            versions = db.list_project_versions("test", project["project_id"])
+            self.assertEqual(len(versions), 3)
+            restored = db.restore_project_version("test", project["project_id"], versions[-1]["version_id"])
+            self.assertEqual(restored["resume_content"]["summary"], versions[-1]["snapshot"]["resume_content"]["summary"])
+
+            reset = db.reset_test_account()
+            self.assertTrue(reset["projects"])
+            self.assertEqual(reset["projects"][0]["company_name"], "示例科技")
 
 
 if __name__ == "__main__":

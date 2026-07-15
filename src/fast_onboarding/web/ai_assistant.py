@@ -37,6 +37,15 @@ class WorkspaceAIAssistant:
                 return self._fallback_chat(context, message, selected_skills=selected_skills)
         return self._fallback_chat(context, message, selected_skills=selected_skills)
 
+    def polish_experience(self, context: dict[str, Any]) -> dict[str, Any]:
+        """Create a reviewable rewrite from supplied experience facts only."""
+        if self.deepseek_client:
+            try:
+                return self._deepseek_polish_experience(context)
+            except Exception:
+                return self._fallback_polish_experience(context)
+        return self._fallback_polish_experience(context)
+
     def chat_stream(self, context: dict[str, Any], message: str):
         """Yield NDJSON-friendly chat events for incremental UI rendering."""
         result = self.chat(context, message)
@@ -76,6 +85,19 @@ class WorkspaceAIAssistant:
         })
         payload["selected_skills"] = self.skill_router.serialize(selected_skills)
         return payload
+
+    def _deepseek_polish_experience(self, context: dict[str, Any]) -> dict[str, Any]:
+        result = self.deepseek_client.complete_json(
+            (
+                "你是简历经历润色助手。只输出 JSON，字段为 summary, polished_bullets, questions, "
+                "evidence_warnings, authenticity_notice。严格遵守真实性：只能重组、压缩和润色用户已输入的事实；"
+                "不得新增公司、岗位、工具、数字、结果、奖项、时间或未经输入的结论。"
+                "polished_bullets 每条都必须能在原始材料中找到对应事实；信息不足时不要凑句子，改为 questions。"
+                "不要使用任何示例数字或虚构示例。"
+            ),
+            json.dumps({"experience": dict(context.get("experience") or {})}, ensure_ascii=False),
+        )
+        return self._sanitize_polish_payload(context, result)
 
     def _fallback_autofill(self, context: dict[str, Any], *, target: str) -> dict[str, Any]:
         source = self._source_text(context)
@@ -156,6 +178,23 @@ class WorkspaceAIAssistant:
             "authenticity_notice": AUTHENTICITY_NOTICE,
         }
 
+    def _fallback_polish_experience(self, context: dict[str, Any]) -> dict[str, Any]:
+        experience = dict(context.get("experience") or {})
+        bullets = self._lines(experience.get("bullets") or [])
+        if not bullets:
+            bullets = self._lines(experience.get("template_data") or [])
+        questions = []
+        if not bullets:
+            questions.append("请先填写这段经历中你亲自完成的动作、工具或交付物，AI 才能进行润色。")
+        if not self._metric_lines(experience.get("metrics") or experience.get("template_data") or []):
+            questions.append("如有真实可核实的结果，请补充时间、数量、比例、规模或链接；没有数字也可以说明实际产出。")
+        return self._sanitize_polish_payload(context, {
+            "summary": "以下建议稿只整理你已填写的事实，请核对后再采纳。",
+            "polished_bullets": bullets,
+            "questions": questions,
+            "evidence_warnings": self._evidence_warnings(self._source_text(context)),
+        })
+
     def _normalize_ai_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {
             "suggested_fields": dict(payload.get("suggested_fields") or {}),
@@ -200,6 +239,29 @@ class WorkspaceAIAssistant:
         payload["suggested_fields"] = fields
         return payload
 
+    def _sanitize_polish_payload(self, context: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        source = self._source_text(context)
+        bullets = []
+        for item in self._coerce_list(payload.get("polished_bullets") or []):
+            if self._has_unsupported_claim(item, source):
+                continue
+            safe_item = self._truth_safe_replacement(item, source)
+            if safe_item and safe_item not in bullets:
+                bullets.append(safe_item)
+        if not bullets:
+            bullets = self._lines((context.get("experience") or {}).get("bullets") or [])
+        summary = str(payload.get("summary") or "")
+        if not summary or self._has_unsupported_claim(summary, source):
+            summary = "以下建议稿只整理你已填写的事实，请核对后再采纳。"
+        return {
+            "summary": summary,
+            "polished_bullets": bullets,
+            "questions": self._coerce_list(payload.get("questions") or []),
+            "evidence_warnings": self._coerce_list(payload.get("evidence_warnings") or self._evidence_warnings(source)),
+            "authenticity_notice": AUTHENTICITY_NOTICE,
+            "requires_confirmation": True,
+        }
+
     def _truth_safe_replacement(self, text: str, source: str) -> str:
         if self._looks_invented(text, source):
             if self._has_unseen_number(text, source):
@@ -218,6 +280,11 @@ class WorkspaceAIAssistant:
     def _has_unseen_number(self, text: str, source: str) -> bool:
         numbers = re.findall(r"\d+(?:\.\d+)?%?％?", text)
         return any(number and number not in source for number in numbers)
+
+    def _has_unsupported_claim(self, text: str, source: str) -> bool:
+        """Reject stronger role or impact claims that were not supplied as facts."""
+        risky_claims = ["主导", "独立", "显著", "大幅", "全面", "成功", "行业领先", "最佳", "第一", "从0到1"]
+        return any(claim in text and claim not in source for claim in risky_claims)
 
     def _chunk_text(self, text: str, *, size: int = 18) -> list[str]:
         if not text:
