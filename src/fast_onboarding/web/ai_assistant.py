@@ -46,6 +46,15 @@ class WorkspaceAIAssistant:
                 return self._fallback_polish_experience(context)
         return self._fallback_polish_experience(context)
 
+    def compose_resume(self, context: dict[str, Any]) -> dict[str, Any]:
+        """Select, polish and organize all saved materials for one resume."""
+        if self.deepseek_client:
+            try:
+                return self._deepseek_compose_resume(context)
+            except Exception:
+                return self._fallback_compose_resume(context)
+        return self._fallback_compose_resume(context)
+
     def chat_stream(self, context: dict[str, Any], message: str):
         """Yield NDJSON-friendly chat events for incremental UI rendering."""
         result = self.chat(context, message)
@@ -98,6 +107,21 @@ class WorkspaceAIAssistant:
             json.dumps({"experience": dict(context.get("experience") or {})}, ensure_ascii=False),
         )
         return self._sanitize_polish_payload(context, result)
+
+    def _deepseek_compose_resume(self, context: dict[str, Any]) -> dict[str, Any]:
+        result = self.deepseek_client.complete_json(
+            (
+                "你是简历编排助手。只输出 JSON，字段为 summary、sections、selected_material_ids、questions、"
+                "evidence_warnings。sections 必须是 education、work、projects、awards、skills、other 六个键，"
+                "每个值是适合直接放入简历的纯文本，可使用换行和项目符号。"
+                "你会读取用户的全部已保存素材、目标公司、目标岗位、JD 与当前简历，并只选择与岗位有关的真实素材。"
+                "必须严格遵守真实性：只能压缩、排序、合并和润色已有事实；不得新增公司、学校、数字、工具、角色、"
+                "结果、奖项、时间或因果结论。每一条表述都必须可追溯到某条 saved_experiences。"
+                "信息不足时留空并放入 questions；不要给出虚构示例。selected_material_ids 只能返回输入中存在的 material_id。"
+            ),
+            json.dumps(context, ensure_ascii=False),
+        )
+        return self._sanitize_compose_payload(context, result)
 
     def _fallback_autofill(self, context: dict[str, Any], *, target: str) -> dict[str, Any]:
         source = self._source_text(context)
@@ -195,6 +219,53 @@ class WorkspaceAIAssistant:
             "evidence_warnings": self._evidence_warnings(self._source_text(context)),
         })
 
+    def _fallback_compose_resume(self, context: dict[str, Any]) -> dict[str, Any]:
+        sections = {key: "" for key in ("education", "work", "projects", "awards", "skills", "other")}
+        blocks = {key: [] for key in sections}
+        selected_ids: list[str] = []
+        skill_values: list[str] = []
+        section_by_category = {
+            "education": "education",
+            "work": "work",
+            "experience": "work",
+            "project": "projects",
+            "award": "awards",
+            "other": "other",
+        }
+        for material in context.get("saved_experiences") or []:
+            if not isinstance(material, dict):
+                continue
+            category = str(material.get("category") or "work")
+            material_id = str(material.get("material_id") or material.get("experience_id") or "")
+            for skill in self._coerce_list(material.get("skills") or []):
+                if skill not in skill_values:
+                    skill_values.append(skill)
+            section = section_by_category.get(category)
+            if section:
+                block = self._material_resume_block(material)
+                if block:
+                    blocks[section].append(block)
+                    if material_id:
+                        selected_ids.append(material_id)
+            elif category == "skill" and material_id:
+                selected_ids.append(material_id)
+        for key, values in blocks.items():
+            sections[key] = "\n\n".join(values)
+        if skill_values:
+            sections["skills"] = "、".join(skill_values)
+        questions = []
+        if not selected_ids:
+            questions.append("请先保存至少一条包含真实职责、工具或成果的经历，AI 才能自动插入简历。")
+        return {
+            "summary": "",
+            "sections": sections,
+            "selected_material_ids": list(dict.fromkeys(selected_ids)),
+            "questions": questions,
+            "evidence_warnings": self._evidence_warnings(self._source_text(context)),
+            "authenticity_notice": AUTHENTICITY_NOTICE,
+            "requires_confirmation": True,
+        }
+
     def _normalize_ai_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {
             "suggested_fields": dict(payload.get("suggested_fields") or {}),
@@ -261,6 +332,53 @@ class WorkspaceAIAssistant:
             "authenticity_notice": AUTHENTICITY_NOTICE,
             "requires_confirmation": True,
         }
+
+    def _sanitize_compose_payload(self, context: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        source = self._source_text(context)
+        allowed_ids = {
+            str(item.get("material_id") or item.get("experience_id") or "")
+            for item in context.get("saved_experiences") or []
+            if isinstance(item, dict)
+        }
+        sections: dict[str, str] = {}
+        raw_sections = dict(payload.get("sections") or {})
+        for key in ("education", "work", "projects", "awards", "skills", "other"):
+            raw_value = raw_sections.get(key, "")
+            if isinstance(raw_value, list):
+                raw_value = "\n".join(str(item).strip() for item in raw_value if str(item).strip())
+            value = str(raw_value or "").strip()
+            if value and not self._has_unsupported_claim(value, source) and not self._looks_invented(value, source):
+                sections[key] = value
+            else:
+                sections[key] = ""
+        selected_ids = [
+            material_id
+            for material_id in self._coerce_list(payload.get("selected_material_ids") or [])
+            if material_id in allowed_ids
+        ]
+        summary = str(payload.get("summary") or "").strip()
+        if self._has_unsupported_claim(summary, source) or self._looks_invented(summary, source):
+            summary = ""
+        return {
+            "summary": summary,
+            "sections": sections,
+            "selected_material_ids": list(dict.fromkeys(selected_ids)),
+            "questions": self._coerce_list(payload.get("questions") or []),
+            "evidence_warnings": self._coerce_list(payload.get("evidence_warnings") or self._evidence_warnings(source)),
+            "authenticity_notice": AUTHENTICITY_NOTICE,
+            "requires_confirmation": True,
+        }
+
+    def _material_resume_block(self, material: dict[str, Any]) -> str:
+        title = str(material.get("title") or "").strip()
+        organization = str(material.get("organization") or "").strip()
+        heading = "｜".join(part for part in (title, organization) if part)
+        facts = self._lines(material.get("bullets") or [])[:4]
+        metrics = self._lines(material.get("metrics") or [])[:2]
+        lines = [heading] if heading else []
+        lines.extend(f"- {fact}" for fact in facts)
+        lines.extend(f"- 结果：{metric}" for metric in metrics)
+        return "\n".join(lines)
 
     def _truth_safe_replacement(self, text: str, source: str) -> str:
         if self._looks_invented(text, source):

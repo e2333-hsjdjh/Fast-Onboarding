@@ -203,6 +203,33 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     context = dict(payload.get("context") or {})
                     self._send_json({"ai": assistant.polish_experience(context)})
                     return
+                if route == "/api/ai/compose-resume":
+                    user_id = str(payload.get("user_id") or "").strip()
+                    project_id = str(payload.get("project_id") or "").strip()
+                    db = UserDatabase(config.database_path)
+                    user = db.get_user(user_id)
+                    project = db.get_project(user_id, project_id) if user_id and project_id else None
+                    if not user:
+                        raise ValueError("user_not_found")
+                    if not project:
+                        raise ValueError("project_not_found")
+                    context = {
+                        "user": {
+                            "user_id": user_id,
+                            "name": user.get("name", ""),
+                            "email": user.get("email", ""),
+                            "phone": user.get("phone", ""),
+                            "location": user.get("location", ""),
+                            "target_title": user.get("target_title", ""),
+                        },
+                        "project": project,
+                        "saved_experiences": db.list_experiences(user_id),
+                        "jd_text": project.get("jd_text", ""),
+                        "target_title": project.get("role_title", "") or user.get("target_title", ""),
+                        "current_resume_content": project.get("resume_content", {}),
+                    }
+                    self._send_json({"ai": assistant.compose_resume(context)})
+                    return
                 if route == "/api/ai/chat/stream":
                     context = dict(payload.get("context") or {})
                     message = str(payload.get("message", ""))

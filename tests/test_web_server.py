@@ -48,9 +48,12 @@ class WebServerTest(unittest.TestCase):
         self.assertIn('id="resumeEditor"', workspace_html)
         self.assertIn('id="resumeCardGrid"', workspace_html)
         self.assertIn('id="experienceDialog"', workspace_html)
+        self.assertIn('AI 读取全部素材并插入', workspace_html)
         self.assertNotIn('value="AI 简历生成器产品负责人"', workspace_html)
         self.assertNotIn('将简历初稿生成时间从 60 分钟压缩到 5 分钟', workspace_html)
         self.assertIn("source-pane", workspace_html)
+        app_js = Path("src/fast_onboarding/web/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("/api/ai/compose-resume", app_js)
         self.assertIn("resume-pane", workspace_html)
         self.assertIn("ai-pane", workspace_html)
         self.assertIn(".resume-card-grid", styles)
@@ -293,6 +296,22 @@ class WebServerTest(unittest.TestCase):
                 project_body = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(response.status, 200)
                 self.assertEqual(project_body["project"]["company_name"], "示例科技")
+
+                conn.request(
+                    "POST",
+                    "/resume/api/ai/compose-resume",
+                    json.dumps({
+                        "user_id": "zhangsan@example.com",
+                        "project_id": project_body["project"]["project_id"],
+                    }).encode("utf-8"),
+                    {"Content-Type": "application/json"},
+                )
+                response = conn.getresponse()
+                compose_body = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertIn("增长实验平台", compose_body["ai"]["sections"]["projects"])
+                self.assertTrue(compose_body["ai"]["selected_material_ids"])
+                self.assertNotIn("password_hash", json.dumps(compose_body, ensure_ascii=False))
 
                 conn.request("GET", "/resume/api/users/zhangsan@example.com/experiences")
                 response = conn.getresponse()

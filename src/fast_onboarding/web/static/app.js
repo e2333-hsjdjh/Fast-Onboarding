@@ -8,7 +8,8 @@ const state = {
   session: null,
   activeProject: null,
   sourceCategory: 'basic',
-  experienceAiDraft: []
+  experienceAiDraft: [],
+  selectedMaterialIds: []
 };
 
 const sessionKey = 'fastOnboarding.session';
@@ -481,7 +482,9 @@ function currentProjectPayload() {
     template_id: state.activeProject ? state.activeProject.template_id : 'zsc_table_resume',
     language: state.activeProject ? state.activeProject.language : 'zh-CN',
     visibility: state.activeProject ? state.activeProject.visibility : 'private',
-    selected_material_ids: state.experiences.map((item) => item.material_id || item.experience_id),
+    selected_material_ids: state.selectedMaterialIds.length
+      ? state.selectedMaterialIds
+      : state.experiences.map((item) => item.material_id || item.experience_id),
     resume_content: {
       name: $('name').value,
       target_title: $('targetTitle').value,
@@ -685,6 +688,7 @@ function renderProjects() {
 
 function activateProject(project) {
   state.activeProject = project;
+  state.selectedMaterialIds = project.selected_material_ids || [];
   $('companyName').value = project.company_name || '';
   $('projectRole').value = project.role_title || '';
   $('targetTitle').value = project.role_title || $('targetTitle').value;
@@ -754,6 +758,69 @@ function insertExperienceToResume(item) {
   const current = target.value.trim();
   target.value = current && !current.startsWith('待') ? `${current}\n\n${incoming}` : incoming;
   $('status').textContent = `已插入到${categoryLabels[category] || '简历'}`;
+}
+
+const aiResumeSectionTargets = {
+  education: 'educationText',
+  work: 'workResumeText',
+  projects: 'projectResumeText',
+  awards: 'awardResumeText',
+  skills: 'skills',
+  other: 'otherResumeText'
+};
+
+function insertAiResumeSection(target, incoming) {
+  const cleanIncoming = String(incoming || '').trim();
+  if (!cleanIncoming) return false;
+  const current = target.value.trim();
+  if (!current || current.startsWith('待')) {
+    target.value = cleanIncoming;
+    return true;
+  }
+  if (current.includes(cleanIncoming)) return false;
+  target.value = `${current}\n\n${cleanIncoming}`;
+  return true;
+}
+
+async function aiComposeResume() {
+  requireUser();
+  if (!state.activeProject) {
+    $('status').textContent = '请先创建或打开一份简历，再让 AI 插入经历。';
+    return;
+  }
+  const button = $('aiFilterBtn');
+  button.disabled = true;
+  $('aiStatus').textContent = 'AI 正在读取全部素材并编排';
+  try {
+    const data = await requestJson('/api/ai/compose-resume', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: activeUserId(), project_id: state.activeProject.project_id })
+    });
+    const ai = data.ai || {};
+    let inserted = 0;
+    for (const [section, targetId] of Object.entries(aiResumeSectionTargets)) {
+      if (insertAiResumeSection($(targetId), (ai.sections || {})[section])) inserted += 1;
+    }
+    const summary = String(ai.summary || '').trim();
+    if (summary && (!$('summary').value.trim() || $('summary').value.includes('3 年 AI 产品'))) {
+      $('summary').value = summary;
+      inserted += 1;
+    }
+    state.selectedMaterialIds = ai.selected_material_ids || [];
+    renderAiResult({
+      reply: inserted ? `已读取全部已保存素材，并插入 ${inserted} 个简历模块。` : '没有发现可新增的真实素材，现有正文保持不变。',
+      questions: ai.questions,
+      evidence_warnings: ai.evidence_warnings,
+      authenticity_notice: ai.authenticity_notice,
+      confidence: ai.requires_confirmation ? '待确认' : '已完成'
+    });
+    await saveProject();
+    $('status').textContent = inserted ? 'AI 已筛选、润色并插入真实素材，已保存为简历版本' : 'AI 已完成核对，未覆盖现有正文';
+  } catch (error) {
+    $('status').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function openExperienceDialog(category = state.sourceCategory) {
@@ -1190,9 +1257,7 @@ $('backExperienceTypesBtn').addEventListener('click', () => {
   $('experienceFormStep').hidden = true;
 });
 $('experienceCategory').addEventListener('change', () => renderExperienceTemplate($('experienceCategory').value));
-$('aiFilterBtn').addEventListener('click', () => {
-  for (const item of state.experiences) insertExperienceToResume(item);
-});
+$('aiFilterBtn').addEventListener('click', aiComposeResume);
 $('aiExperienceBtn').addEventListener('click', () => aiAutofill('experience'));
 $('aiExtractExperienceBtn').addEventListener('click', aiExtractExperience);
 $('aiPolishExperienceBtn').addEventListener('click', aiPolishExperience);

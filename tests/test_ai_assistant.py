@@ -104,6 +104,40 @@ class WorkspaceAIAssistantTest(unittest.TestCase):
         self.assertEqual(result["polished_bullets"], ["负责 SQL 数据分析"])
         self.assertEqual(result["summary"], "以下建议稿只整理你已填写的事实，请核对后再采纳。")
 
+    def test_compose_resume_reads_saved_materials_and_keeps_facts(self):
+        assistant = WorkspaceAIAssistant()
+
+        result = assistant.compose_resume(
+            {
+                "saved_experiences": [
+                    {
+                        "material_id": "edu-1",
+                        "category": "education",
+                        "title": "中国人民大学｜传播学",
+                        "organization": "中国人民大学",
+                        "bullets": ["相关课程：新闻采访与写作"],
+                        "skills": ["新闻采访与写作"],
+                    },
+                    {
+                        "material_id": "project-1",
+                        "category": "project",
+                        "title": "班级信息化管理系统",
+                        "organization": "中国人民大学",
+                        "bullets": ["基于 Django 搭建班级信息化管理系统"],
+                        "metrics": ["策划4场主题团日活动"],
+                        "skills": ["Django", "LangChain"],
+                    },
+                ]
+            }
+        )
+
+        self.assertIn("中国人民大学｜传播学", result["sections"]["education"])
+        self.assertIn("基于 Django 搭建班级信息化管理系统", result["sections"]["projects"])
+        self.assertIn("策划4场主题团日活动", result["sections"]["projects"])
+        self.assertIn("Django", result["sections"]["skills"])
+        self.assertEqual(result["selected_material_ids"], ["edu-1", "project-1"])
+        self.assertTrue(result["requires_confirmation"])
+
 
 if __name__ == "__main__":
     unittest.main()
