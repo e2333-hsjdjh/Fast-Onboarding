@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 import json
 import mimetypes
 import os
+import time
 from pathlib import Path
 from typing import Any
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,6 +19,10 @@ from fast_onboarding.resume_mvp import MaterialStore, ResumeMVPWorkflow
 from fast_onboarding.web.ai_assistant import WorkspaceAIAssistant
 
 
+class RequestAbort(Exception):
+    """Stop request handling after an HTTP response has been sent."""
+
+
 @dataclass(frozen=True)
 class WebAppConfig:
     host: str = "127.0.0.1"
@@ -26,6 +31,8 @@ class WebAppConfig:
     output_dir: str = "workspace/web-output"
     database_path: str = "data/fast_onboarding.sqlite3"
     static_dir: Path = Path(__file__).resolve().parent / "static"
+    environment: str = "production"
+    max_request_bytes: int = 1_000_000
 
     @classmethod
     def from_env(cls) -> "WebAppConfig":
@@ -35,6 +42,8 @@ class WebAppConfig:
             base_path=normalize_base_path(os.getenv("FAST_ONBOARDING_BASE_PATH", "")),
             output_dir=os.getenv("FAST_ONBOARDING_OUTPUT_DIR", "workspace/web-output"),
             database_path=os.getenv("FAST_ONBOARDING_DATABASE", "data/fast_onboarding.sqlite3"),
+            environment=os.getenv("FAST_ONBOARDING_ENV", "production").strip().lower(),
+            max_request_bytes=int(os.getenv("FAST_ONBOARDING_MAX_REQUEST_BYTES", "1000000")),
         )
 
 
@@ -48,6 +57,7 @@ def normalize_base_path(value: str) -> str:
 def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
     class ResumeWebHandler(BaseHTTPRequestHandler):
         server_version = "FastOnboardingWeb/0.1"
+        _rate_buckets: dict[tuple[str, str], list[float]] = {}
 
         def do_GET(self) -> None:
             route = self._route_path()
@@ -57,21 +67,23 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if route == "/api/material-templates":
                 self._send_json({"templates": UserDatabase(config.database_path).list_material_templates()})
                 return
-            if route.startswith("/api/auth/session/"):
-                token = unquote(route.removeprefix("/api/auth/session/"))
-                user = UserDatabase(config.database_path).get_session_user(token)
+            if route == "/api/auth/session":
+                user = self._session_user()
                 if not user:
                     self._send_json({"error": "session_expired"}, status=401)
                     return
                 self._send_json({"user": user})
                 return
             if route.startswith("/api/users/"):
-                self._handle_user_get(route)
+                try:
+                    self._handle_user_get(route)
+                except RequestAbort:
+                    return
                 return
             if route in {"", "/"}:
                 self._send_static("index.html")
                 return
-            if route in {"/workspace", "/workspace/"}:
+            if route in {"/workspace", "/workspace/", "/workspace/resumes", "/workspace/resumes/"} or route.startswith("/workspace/resumes/"):
                 self._send_static("workspace.html")
                 return
             if route.startswith("/static/"):
@@ -87,7 +99,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if route in {"", "/"}:
                 self._send_static("index.html", include_body=False)
                 return
-            if route in {"/workspace", "/workspace/"}:
+            if route in {"/workspace", "/workspace/", "/workspace/resumes", "/workspace/resumes/"} or route.startswith("/workspace/resumes/"):
                 self._send_static("workspace.html", include_body=False)
                 return
             if route.startswith("/static/"):
@@ -113,11 +125,12 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
 
         def _handle_generate(self) -> None:
             try:
+                user = self._require_session_user()
+                self._check_rate_limit("generate", limit=10, window_seconds=3600)
                 payload = self._read_json()
                 profile = MaterialStore("data/web-profile.json").from_dict(payload.get("profile", {}))
                 jd_text = str(payload.get("jd_text", ""))
                 target_role = str(payload.get("target_role", ""))
-                requested_user_id = str(payload.get("user_id", "")).strip() or None
                 if not profile.name.strip():
                     raise ValueError("profile.name is required")
                 if not jd_text.strip():
@@ -143,7 +156,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                         "content_report_path": result["content_report_path"],
                         "ats_report_path": result["ats_report_path"],
                     },
-                    user_id=requested_user_id,
+                    user_id=user["user_id"],
                 )
                 response = {
                     **result,
@@ -155,11 +168,15 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 self._send_json(response)
             except ValueError as exc:
                 self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except RequestAbort:
+                return
             except json.JSONDecodeError:
                 self._send_json({"error": "bad_json"}, status=400)
 
         def _handle_auth_post(self, route: str) -> None:
             try:
+                if route in {"/api/auth/login", "/api/auth/register"}:
+                    self._check_rate_limit("auth", limit=10, window_seconds=900)
                 payload = self._read_json()
                 db = UserDatabase(config.database_path)
                 if route == "/api/auth/register":
@@ -169,29 +186,40 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                         password=str(payload.get("password", "")),
                         target_title=str(payload.get("target_title", "")),
                     )
-                    self._send_json({"user": user, "session": db.create_session(user["user_id"])})
+                    self._start_session(user, db)
                     return
                 if route == "/api/auth/login":
                     login = db.login_with_session(
                         identifier=str(payload.get("email", "")),
                         password=str(payload.get("password", "")),
                     )
-                    self._send_json(login)
+                    self._start_session(login["user"], db)
                     return
                 if route == "/api/auth/test-session":
-                    self._send_json(db.create_test_session())
+                    self._require_development_mode()
+                    test_login = db.create_test_session()
+                    self._start_session(test_login["user"], db, session=test_login["session"])
                     return
                 if route == "/api/auth/test-reset":
+                    self._require_development_mode()
+                    user = self._require_session_user()
+                    if not user.get("is_test"):
+                        self._send_json({"error": "forbidden"}, status=403)
+                        return
                     self._send_json(db.reset_test_account())
                     return
                 self._send_json({"error": "not_found"}, status=404)
             except ValueError as exc:
                 self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except RequestAbort:
+                return
             except json.JSONDecodeError:
                 self._send_json({"error": "bad_json"}, status=400)
 
         def _handle_ai_post(self, route: str) -> None:
             try:
+                user = self._require_session_user()
+                self._check_rate_limit("ai", limit=30, window_seconds=3600)
                 payload = self._read_json()
                 assistant = WorkspaceAIAssistant(self._optional_deepseek_client())
                 if route == "/api/ai/autofill":
@@ -204,7 +232,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                     self._send_json({"ai": assistant.polish_experience(context)})
                     return
                 if route == "/api/ai/compose-resume":
-                    user_id = str(payload.get("user_id") or "").strip()
+                    user_id = user["user_id"]
                     project_id = str(payload.get("project_id") or "").strip()
                     db = UserDatabase(config.database_path)
                     user = db.get_user(user_id)
@@ -243,6 +271,8 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 self._send_json({"error": "not_found"}, status=404)
             except ValueError as exc:
                 self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except RequestAbort:
+                return
             except json.JSONDecodeError:
                 self._send_json({"error": "bad_json"}, status=400)
 
@@ -256,6 +286,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             try:
                 payload = self._read_json()
                 db = UserDatabase(config.database_path)
+                self._require_user_owner(user_id)
                 if resource == "experiences":
                     if not str(payload.get("title", "")).strip():
                         raise ValueError("title is required")
@@ -274,6 +305,8 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 self._send_json({"error": "not_found"}, status=404)
             except ValueError as exc:
                 self._send_json({"error": "bad_request", "message": str(exc)}, status=400)
+            except RequestAbort:
+                return
             except json.JSONDecodeError:
                 self._send_json({"error": "bad_json"}, status=400)
 
@@ -291,7 +324,13 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             return path or "/"
 
         def _read_json(self) -> dict[str, Any]:
-            length = int(self.headers.get("Content-Length", "0"))
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError as exc:
+                raise ValueError("invalid Content-Length") from exc
+            if length < 0 or length > config.max_request_bytes:
+                self._send_json({"error": "payload_too_large"}, status=413)
+                raise RequestAbort
             raw = self.rfile.read(length).decode("utf-8")
             data = json.loads(raw or "{}")
             if not isinstance(data, dict):
@@ -305,6 +344,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 return
             user_id = unquote(parts[2])
             db = UserDatabase(config.database_path)
+            self._require_user_owner(user_id)
             if len(parts) == 3:
                 user = db.get_user(user_id)
                 if not user:
@@ -333,12 +373,15 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 return
             self._send_json({"error": "not_found"}, status=404)
 
-        def _send_json(self, payload: dict[str, Any], *, status: int = 200, include_body: bool = True) -> None:
+        def _send_json(self, payload: dict[str, Any], *, status: int = 200, include_body: bool = True, extra_headers: dict[str, str] | None = None) -> None:
             body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self._send_security_headers()
             self.send_header("Content-Length", str(len(body)))
+            for key, value in (extra_headers or {}).items():
+                self.send_header(key, value)
             self.end_headers()
             if include_body:
                 self.wfile.write(body)
@@ -348,6 +391,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Accel-Buffering", "no")
+            self._send_security_headers()
             self.end_headers()
             for event in events:
                 line = json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n"
@@ -367,6 +411,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             if path.suffix in {".html", ".css", ".js"}:
                 text = path.read_text(encoding="utf-8")
                 text = text.replace("__BASE_PATH__", config.base_path)
+                text = text.replace("__DEVELOPMENT_MODE__", "true" if config.environment == "development" else "false")
                 body = text.encode("utf-8")
                 content_type += "; charset=utf-8"
             else:
@@ -374,6 +419,7 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", "no-store")
+            self._send_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             if include_body:
@@ -391,6 +437,67 @@ def create_handler(config: WebAppConfig) -> type[BaseHTTPRequestHandler]:
                 return DeepSeekClient(DeepSeekConfig.from_env())
             except RuntimeError:
                 return None
+
+        def _session_user(self) -> dict[str, Any] | None:
+            token = self._cookies().get("fast_onboarding_session", "")
+            return UserDatabase(config.database_path).get_session_user(token) if token else None
+
+        def _require_session_user(self) -> dict[str, Any]:
+            user = self._session_user()
+            if not user:
+                self._send_json({"error": "authentication_required"}, status=401)
+                raise RequestAbort
+            return user
+
+        def _require_user_owner(self, user_id: str) -> dict[str, Any]:
+            user = self._require_session_user()
+            if user["user_id"] != user_id:
+                self._send_json({"error": "forbidden"}, status=403)
+                raise RequestAbort
+            return user
+
+        def _require_development_mode(self) -> None:
+            if config.environment != "development":
+                self._send_json({"error": "not_found"}, status=404)
+                raise RequestAbort
+
+        def _start_session(self, user: dict[str, Any], db: UserDatabase, *, session: dict[str, Any] | None = None) -> None:
+            active_session = session or db.create_session(user["user_id"])
+            cookie = f"fast_onboarding_session={active_session['token']}; Path={config.base_path or '/'}; HttpOnly; SameSite=Lax; Max-Age=2592000"
+            if config.environment == "production":
+                cookie += "; Secure"
+            self._send_json({"user": user, "session": {"expires_at": active_session["expires_at"]}}, extra_headers={"Set-Cookie": cookie})
+
+        def _cookies(self) -> dict[str, str]:
+            result: dict[str, str] = {}
+            for item in self.headers.get("Cookie", "").split(";"):
+                if "=" in item:
+                    key, value = item.strip().split("=", 1)
+                    result[key] = value
+            return result
+
+        def _check_rate_limit(self, scope: str, *, limit: int, window_seconds: int) -> None:
+            key = (scope, self._client_ip())
+            now = time.monotonic()
+            events = [event for event in self._rate_buckets.get(key, []) if event > now - window_seconds]
+            if len(events) >= limit:
+                self._rate_buckets[key] = events
+                self._send_json({"error": "rate_limited"}, status=429)
+                raise RequestAbort
+            events.append(now)
+            self._rate_buckets[key] = events
+
+        def _client_ip(self) -> str:
+            # The application is bound to loopback and nginx supplies this header.
+            # Do not expose the app port directly to the internet.
+            return self.headers.get("X-Forwarded-For", self.client_address[0]).split(",", 1)[0].strip()
+
+        def _send_security_headers(self) -> None:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+            self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+            self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'")
 
     return ResumeWebHandler
 

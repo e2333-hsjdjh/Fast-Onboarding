@@ -1,18 +1,20 @@
 const basePath = document.querySelector('script[src$="app.js"]').getAttribute('src').replace(/\/static\/app\.js$/, '');
+const developmentMode = __DEVELOPMENT_MODE__;
 
 const $ = (id) => document.getElementById(id);
 const state = {
   experiences: [],
   projects: [],
   currentUser: null,
-  session: null,
   activeProject: null,
   sourceCategory: 'basic',
   experienceAiDraft: [],
-  selectedMaterialIds: []
+  selectedMaterialIds: [],
+  aiAbortController: null
 };
 
-const sessionKey = 'fastOnboarding.session';
+const workspaceRoot = `${basePath}/workspace`;
+const workspaceResumesRoot = `${basePath}/workspace/resumes`;
 const categoryLabels = {
   basic: '基础信息',
   education: '教育经历',
@@ -193,7 +195,27 @@ function openUserExperiences() {
   $('status').textContent = '正在编辑个人经历';
 }
 
-function showWorkspaceView(view) {
+function workspaceRoute() {
+  const pathname = window.location.pathname;
+  const localPath = basePath && pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname;
+  const match = localPath.match(/^\/workspace\/resumes\/([^/]+)\/?$/);
+  return match ? { view: 'editor', projectId: decodeURIComponent(match[1]) } : { view: 'library', projectId: null };
+}
+
+function syncWorkspaceUrl(view, project = state.activeProject, { replace = false } = {}) {
+  const target = view === 'editor' && project?.project_id
+    ? `${workspaceResumesRoot}/${encodeURIComponent(project.project_id)}`
+    : workspaceResumesRoot;
+  if (window.location.pathname === target) return;
+  const routeState = { view, projectId: project?.project_id || null };
+  if (replace) {
+    window.history.replaceState(routeState, '', target);
+  } else {
+    window.history.pushState(routeState, '', target);
+  }
+}
+
+function showWorkspaceView(view, { syncUrl = true, replaceUrl = false } = {}) {
   const showEditor = view === 'editor';
   $('resumeLibrary').hidden = showEditor;
   $('resumeEditor').hidden = !showEditor;
@@ -203,6 +225,46 @@ function showWorkspaceView(view) {
   $('topAddExperienceBtn').hidden = !showEditor;
   $('versionHistoryBtn').hidden = !showEditor;
   $('exportBtn').hidden = !showEditor;
+  if (syncUrl && (!showEditor || state.activeProject)) syncWorkspaceUrl(view, state.activeProject, { replace: replaceUrl });
+  document.body.classList.remove('workspace-view-enter');
+  requestAnimationFrame(() => document.body.classList.add('workspace-view-enter'));
+}
+
+function restoreWorkspaceRoute() {
+  if (!state.currentUser) return;
+  const route = workspaceRoute();
+  const project = route.projectId ? state.projects.find((item) => item.project_id === route.projectId) : null;
+  if (project) {
+    activateProject(project, { syncUrl: false });
+    return;
+  }
+  showWorkspaceView('library', { replaceUrl: true });
+}
+
+function finishInitialLoading() {
+  const loading = $('workspaceLoading');
+  if (!loading || loading.hidden) return;
+  loading.classList.add('is-exiting');
+  window.setTimeout(() => { loading.hidden = true; }, 240);
+}
+
+function setupEditorInteractionCues() {
+  const stageStatus = $('editorStageStatus');
+  if (!stageStatus) return;
+  const resetStage = () => {
+    document.querySelectorAll('.resume-section.is-editing').forEach((section) => section.classList.remove('is-editing'));
+    stageStatus.textContent = '正文草稿';
+  };
+  document.querySelectorAll('.resume-paper input, .resume-paper textarea').forEach((field) => {
+    field.addEventListener('focus', () => {
+      resetStage();
+      const section = field.closest('.resume-section');
+      const heading = section?.querySelector('h3')?.textContent?.trim();
+      if (section) section.classList.add('is-editing');
+      stageStatus.textContent = heading ? `正在编辑 · ${heading}` : '正在编辑 · 基础信息';
+    });
+    field.addEventListener('blur', () => window.setTimeout(resetStage, 80));
+  });
 }
 
 function resumeTitle(project = state.activeProject) {
@@ -333,10 +395,8 @@ function applyUserToProfile(user) {
   $('savedUser').textContent = user.user_id || '未保存';
 }
 
-async function activateUser(user, session = null) {
+async function activateUser(user) {
   state.currentUser = user;
-  state.session = session || state.session;
-  if (state.session) localStorage.setItem(sessionKey, JSON.stringify(state.session));
   $('authGate').hidden = true;
   $('workspace').hidden = false;
   $('userBadge').hidden = false;
@@ -348,16 +408,14 @@ async function activateUser(user, session = null) {
   renderExperiences();
   renderProjects();
   await loadUserWorkspace(user.user_id);
-  showWorkspaceView('library');
+  restoreWorkspaceRoute();
 }
 
 function logout() {
   state.currentUser = null;
-  state.session = null;
   state.experiences = [];
   state.projects = [];
   state.activeProject = null;
-  localStorage.removeItem(sessionKey);
   $('authGate').hidden = false;
   $('workspace').hidden = true;
   $('userBadge').hidden = true;
@@ -382,7 +440,7 @@ async function register(event) {
         target_title: $('registerTargetTitle').value
       })
     });
-    await activateUser(data.user, data.session);
+    await activateUser(data.user);
     $('status').textContent = '账号已创建';
   } catch (error) {
     $('authStatus').textContent = error.message;
@@ -400,7 +458,7 @@ async function login(event) {
         password: $('loginPassword').value
       })
     });
-    await activateUser(data.user, data.session);
+    await activateUser(data.user);
     $('status').textContent = '已登录';
   } catch (error) {
     $('authStatus').textContent = error.message;
@@ -408,24 +466,19 @@ async function login(event) {
 }
 
 async function restoreSession() {
-  const raw = localStorage.getItem(sessionKey);
-  if (!raw) {
-    await loginTestAccount();
-    return;
-  }
   try {
-    const stored = JSON.parse(raw);
-    const data = await requestJson(`/api/auth/session/${encodeURIComponent(stored.token)}`);
-    await activateUser(data.user, stored);
+    const data = await requestJson('/api/auth/session');
+    await activateUser(data.user);
   } catch (error) {
     logout();
   }
 }
 
 async function loginTestAccount() {
+  if (!developmentMode) return;
   try {
     const data = await requestJson('/api/auth/test-session', { method: 'POST', body: JSON.stringify({}) });
-    await activateUser(data.user, data.session);
+    await activateUser(data.user);
     $('status').textContent = '已进入 test 测试账号';
   } catch (error) {
     $('authStatus').textContent = error.message;
@@ -686,7 +739,7 @@ function renderProjects() {
   renderResumeCards();
 }
 
-function activateProject(project) {
+function activateProject(project, { syncUrl = true } = {}) {
   state.activeProject = project;
   state.selectedMaterialIds = project.selected_material_ids || [];
   $('companyName').value = project.company_name || '';
@@ -703,7 +756,7 @@ function activateProject(project) {
   if (content.awards) $('awardResumeText').value = content.awards;
   if (content.skills) $('skills').value = content.skills;
   if (content.other) $('otherResumeText').value = content.other;
-  showWorkspaceView('editor');
+  showWorkspaceView('editor', { syncUrl });
   $('status').textContent = `正在编辑：${resumeTitle(project)}`;
 }
 
@@ -912,6 +965,7 @@ function hydrateTemplateDefaults(category) {
 async function requestJson(path, options = {}) {
   const response = await fetch(`${basePath}${path}`, {
     ...options,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {})
@@ -951,26 +1005,14 @@ function mergeListField(id, value) {
 
 function renderAiResult(ai) {
   $('aiReply').textContent = ai.reply || ai.authenticity_notice || '已完成';
-  renderSkillChips(ai.selected_skills || []);
-  renderList('aiSuggestions', ai.suggestions || [], '无');
-  renderList('aiQuestions', ai.questions || ai.missing_information || [], '无');
-  renderList('aiWarnings', ai.evidence_warnings || [ai.authenticity_notice].filter(Boolean), '无');
   $('aiStatus').textContent = ai.confidence ? `置信度：${ai.confidence}` : '已完成';
 }
 
-function renderSkillChips(skills) {
-  const target = $('aiSkills');
-  target.innerHTML = '';
-  if (!skills || skills.length === 0) {
-    target.textContent = '未匹配';
-    return;
-  }
-  for (const skill of skills) {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.textContent = skill.name || skill.skill_id;
-    target.appendChild(chip);
-  }
+function setAiChatState(isRunning) {
+  const button = $('aiChatSubmitBtn');
+  button.textContent = isRunning ? '停止' : '发送';
+  button.classList.toggle('is-running', isRunning);
+  button.setAttribute('aria-label', isRunning ? '停止 AI 生成' : '发送问题给 AI');
 }
 
 async function aiAutofill(target) {
@@ -1070,12 +1112,20 @@ function applyExperienceAiDraft() {
 }
 
 async function aiReview() {
+  if (state.aiAbortController) {
+    state.aiAbortController.abort();
+    return;
+  }
+  const controller = new AbortController();
+  state.aiAbortController = controller;
+  setAiChatState(true);
   $('aiStatus').textContent = 'AI 分析中';
   $('aiReply').textContent = '';
   try {
     const response = await fetch(`${basePath}/api/ai/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({ message: $('aiMessage').value, context: workspaceContext() })
     });
     if (!response.ok || !response.body) {
@@ -1112,6 +1162,11 @@ async function aiReview() {
     }
     $('status').textContent = 'AI 建议已生成';
   } catch (error) {
+    if (controller.signal.aborted) {
+      $('aiStatus').textContent = '已停止';
+      $('aiReply').textContent ||= '已停止本次生成。';
+      return;
+    }
     try {
       const data = await requestJson('/api/ai/chat', {
         method: 'POST',
@@ -1121,6 +1176,11 @@ async function aiReview() {
       $('status').textContent = 'AI 建议已生成';
     } catch (fallbackError) {
       $('status').textContent = fallbackError.message || error.message;
+    }
+  } finally {
+    if (state.aiAbortController === controller) {
+      state.aiAbortController = null;
+      setAiChatState(false);
     }
   }
 }
@@ -1263,9 +1323,21 @@ $('aiExtractExperienceBtn').addEventListener('click', aiExtractExperience);
 $('aiPolishExperienceBtn').addEventListener('click', aiPolishExperience);
 $('applyExperienceAiDraftBtn').addEventListener('click', applyExperienceAiDraft);
 $('aiProjectBtn').addEventListener('click', () => aiAutofill('project'));
-$('aiReviewBtn').addEventListener('click', aiReview);
+$('aiChatSubmitBtn').addEventListener('click', aiReview);
+$('aiMoreMenuBtn').addEventListener('click', () => {
+  const menu = $('aiMoreMenu');
+  const isOpen = menu.classList.toggle('is-open');
+  $('aiMoreMenuBtn').setAttribute('aria-expanded', String(isOpen));
+});
+document.querySelectorAll('#aiMoreMenu button').forEach((button) => {
+  button.addEventListener('click', () => {
+    $('aiMoreMenu').classList.remove('is-open');
+    $('aiMoreMenuBtn').setAttribute('aria-expanded', 'false');
+  });
+});
 $('showLoginBtn').addEventListener('click', () => setAuthMode('login'));
 $('showRegisterBtn').addEventListener('click', () => setAuthMode('register'));
+if (!developmentMode) $('testLoginBtn').hidden = true;
 $('testLoginBtn').addEventListener('click', loginTestAccount);
 $('loginForm').addEventListener('submit', login);
 $('registerForm').addEventListener('submit', register);
@@ -1278,7 +1350,9 @@ document.querySelectorAll('[data-source-category]').forEach((button) => {
 document.querySelectorAll('[data-dialog-category]').forEach((button) => {
   button.addEventListener('click', () => showExperienceForm(button.dataset.dialogCategory));
 });
-showWorkspaceView('library');
+showWorkspaceView('library', { syncUrl: false });
+setupEditorInteractionCues();
 renderExperiences();
 renderProjects();
-restoreSession();
+restoreSession().finally(finishInitialLoading);
+window.addEventListener('popstate', restoreWorkspaceRoute);

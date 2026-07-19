@@ -108,17 +108,19 @@ class UserDatabaseTest(unittest.TestCase):
             user = db.register_user(
                 name="张三",
                 email="ZhangSan@Example.com",
-                password="123456",
+                password="CorrectHorseBattery7",
                 target_title="AI 产品经理",
             )
 
             self.assertEqual(user["user_id"], "zhangsan@example.com")
             self.assertEqual(user["avatar_initials"], "张三")
             self.assertNotIn("password_hash", user)
-            logged_in = db.login_user(email="zhangsan@example.com", password="123456")
+            logged_in = db.login_user(email="zhangsan@example.com", password="CorrectHorseBattery7")
             self.assertEqual(logged_in["name"], "张三")
             with self.assertRaises(ValueError):
                 db.login_user(email="zhangsan@example.com", password="wrong-password")
+            with self.assertRaises(ValueError):
+                db.register_user(name="弱密码", email="weak@example.com", password="123456789012")
 
     def test_test_account_sessions_and_resume_versions_are_persistent_and_bounded(self):
         with tempfile.TemporaryDirectory() as tmp:

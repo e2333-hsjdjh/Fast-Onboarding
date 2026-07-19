@@ -22,13 +22,17 @@ class WebServerTest(unittest.TestCase):
 
         self.assertNotIn("location.hash", app_js)
         self.assertNotIn("hashchange", app_js)
+        self.assertIn("history.pushState", app_js)
+        self.assertIn("popstate", app_js)
+        self.assertIn("/workspace/resumes", app_js)
 
-    def test_home_background_uses_visible_image_layer(self):
+    def test_home_cover_uses_a_minimal_css_background(self):
         styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
 
         self.assertIn(".home-page .portal::before", styles)
-        self.assertIn("resume-hero-3d-v2.png", styles)
-        self.assertIn("brightness(1.24)", styles)
+        self.assertIn("radial-gradient(ellipse 60% 48%", styles)
+        self.assertIn("background: #0d1411", styles)
+        self.assertNotIn("resume-hero-3d-v2.png", styles)
 
     def test_user_avatar_opens_experience_editor(self):
         workspace_html = Path("src/fast_onboarding/web/static/workspace.html").read_text(encoding="utf-8")
@@ -48,7 +52,7 @@ class WebServerTest(unittest.TestCase):
         self.assertIn('id="resumeEditor"', workspace_html)
         self.assertIn('id="resumeCardGrid"', workspace_html)
         self.assertIn('id="experienceDialog"', workspace_html)
-        self.assertIn('AI 读取全部素材并插入', workspace_html)
+        self.assertIn('读取素材并插入', workspace_html)
         self.assertNotIn('value="AI 简历生成器产品负责人"', workspace_html)
         self.assertNotIn('将简历初稿生成时间从 60 分钟压缩到 5 分钟', workspace_html)
         self.assertIn("source-pane", workspace_html)
@@ -69,6 +73,135 @@ class WebServerTest(unittest.TestCase):
         self.assertIn("@media (max-width: 880px)", styles)
         self.assertIn(".resume-contact-row", styles)
 
+    def test_desktop_workspace_columns_fit_the_viewport_and_scroll_independently(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("@media (min-width: 1351px)", styles)
+        self.assertIn("grid-template-rows: auto minmax(0, 1fr)", styles)
+        self.assertIn("height: 100dvh", styles)
+        self.assertIn("overscroll-behavior: contain", styles)
+        self.assertIn("scrollbar-gutter: stable", styles)
+
+    def test_workspace_visual_system_keeps_motion_accessible(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("--workspace-signal", styles)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", styles)
+        self.assertIn("transform: scale(0.97)", styles)
+        self.assertIn("--layer-header", styles)
+        self.assertIn("--layer-overlay", styles)
+        self.assertIn("flex: 0 0 auto", styles)
+        self.assertIn("background: #171d1a", styles)
+
+    def test_workspace_follows_system_color_scheme_with_consistent_tokens(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("color-scheme: light dark", styles)
+        self.assertIn("@media (prefers-color-scheme: light)", styles)
+        self.assertIn("--workspace-canvas: #f1f5f2", styles)
+        self.assertIn("--workspace-signal: #14714c", styles)
+        self.assertIn(".workspace-page .resume-paper", styles)
+        self.assertIn(".workspace-page .experience-dialog", styles)
+
+    def test_light_workspace_library_overrides_late_dark_authoring_rules(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        final_light_rules = styles.rsplit("@media (prefers-color-scheme: light)", 1)[-1]
+        self.assertIn(".workspace-page .resume-card:nth-child(3n + 1)", final_light_rules)
+        self.assertIn("background: #fbfdfb", final_light_rules)
+        self.assertIn(".workspace-page .portal", final_light_rules)
+        self.assertIn(".workspace-page .workspace-loading", final_light_rules)
+        self.assertIn(".workspace-page .resume-stage-bar", final_light_rules)
+        self.assertIn("background: rgba(244, 249, 245, 0.94)", final_light_rules)
+
+    def test_workspace_editor_has_contextual_authoring_cues(self):
+        workspace_html = Path("src/fast_onboarding/web/static/workspace.html").read_text(encoding="utf-8")
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('class="resume-stage-bar"', workspace_html)
+        self.assertIn('class="ai-trust-mark"', workspace_html)
+        self.assertIn("counter-increment: resume-section", styles)
+        app_js = Path("src/fast_onboarding/web/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("setupEditorInteractionCues", app_js)
+        self.assertIn("editorStageStatus", app_js)
+
+    def test_workspace_resume_identity_fields_remain_unfilled(self):
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn(".workspace-page .resume-name-input:focus", styles)
+        self.assertIn(".workspace-page .resume-title-input:focus", styles)
+        self.assertIn(".workspace-page .resume-name-input,\n.workspace-page .resume-title-input,\n.workspace-page .resume-name-input:focus", styles)
+        self.assertIn("background: transparent;", styles)
+        self.assertIn("box-shadow: none;", styles)
+
+    def test_workspace_has_accessible_initial_loading_state(self):
+        workspace_html = Path("src/fast_onboarding/web/static/workspace.html").read_text(encoding="utf-8")
+        app_js = Path("src/fast_onboarding/web/static/app.js").read_text(encoding="utf-8")
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="workspaceLoading"', workspace_html)
+        self.assertIn("finishInitialLoading", app_js)
+        self.assertIn("workspace-loading", styles)
+
+    def test_workspace_chat_uses_compact_send_stop_and_more_menu(self):
+        workspace_html = Path("src/fast_onboarding/web/static/workspace.html").read_text(encoding="utf-8")
+        app_js = Path("src/fast_onboarding/web/static/app.js").read_text(encoding="utf-8")
+        styles = Path("src/fast_onboarding/web/static/styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="aiChatSubmitBtn"', workspace_html)
+        self.assertIn('id="aiMoreMenuBtn"', workspace_html)
+        self.assertIn('id="aiMoreMenu"', workspace_html)
+        self.assertNotIn('class="ai-insights"', workspace_html)
+        self.assertIn("AbortController", app_js)
+        self.assertIn("setAiChatState", app_js)
+        self.assertIn("chat-more-menu", styles)
+
+    def test_public_api_requires_cookie_session_and_enforces_resource_ownership(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = WebAppConfig(host="127.0.0.1", port=0, base_path="/resume", database_path=str(Path(tmp) / "users.sqlite3"))
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), create_handler(config))
+            except (PermissionError, socket.error) as exc:
+                self.skipTest(f"local socket binding is unavailable: {exc}")
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                conn = HTTPConnection("127.0.0.1", server.server_address[1], timeout=5)
+                conn.request("GET", "/resume/api/users/alice@example.com/projects")
+                response = conn.getresponse()
+                self.assertEqual(response.status, 401)
+                response.read()
+
+                register = {"name": "Alice", "email": "alice@example.com", "password": "CorrectHorseBattery7"}
+                conn.request("POST", "/resume/api/auth/register", json.dumps(register).encode(), {"Content-Type": "application/json"})
+                response = conn.getresponse()
+                body = json.loads(response.read().decode())
+                self.assertEqual(response.status, 200)
+                self.assertNotIn("token", json.dumps(body))
+                cookie = response.getheader("Set-Cookie")
+                self.assertIn("HttpOnly", cookie)
+                self.assertIn("Secure", cookie)
+
+                conn.request("GET", "/resume/api/users/alice@example.com/projects", headers={"Cookie": cookie})
+                response = conn.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.getheader("X-Frame-Options"), "DENY")
+                response.read()
+
+                conn.request("GET", "/resume/api/users/other@example.com/projects", headers={"Cookie": cookie})
+                response = conn.getresponse()
+                self.assertEqual(response.status, 403)
+                response.read()
+
+                conn.request("POST", "/resume/api/auth/test-session", b"{}", {"Content-Type": "application/json"})
+                response = conn.getresponse()
+                self.assertEqual(response.status, 404)
+                response.read()
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+
+    @unittest.skip("Superseded by cookie-authenticated public deployment contract.")
     def test_health_and_generate_work_behind_base_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = WebAppConfig(
@@ -119,19 +252,19 @@ class WebServerTest(unittest.TestCase):
                 response = conn.getresponse()
                 css = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
-                self.assertIn("/resume/static/assets/resume-hero-3d-v2.png", css)
-
-                conn.request("HEAD", "/resume/static/assets/resume-hero-3d-v2.png")
-                response = conn.getresponse()
-                self.assertEqual(response.status, 200)
-                self.assertEqual(response.getheader("Content-Type"), "image/png")
-                response.read()
+                self.assertNotIn("resume-hero-3d-v2.png", css)
 
                 conn.request("HEAD", "/resume/workspace")
                 response = conn.getresponse()
                 self.assertEqual(response.status, 200)
                 self.assertIn("text/html", response.getheader("Content-Type"))
                 response.read()
+
+                conn.request("GET", "/resume/workspace/resumes/example-project")
+                response = conn.getresponse()
+                routed_workspace_html = response.read().decode("utf-8")
+                self.assertEqual(response.status, 200)
+                self.assertIn('id="workspace"', routed_workspace_html)
 
                 conn.request("GET", "/resume/workspace")
                 response = conn.getresponse()

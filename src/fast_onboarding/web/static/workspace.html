@@ -7,12 +7,20 @@
     <link rel="stylesheet" href="__BASE_PATH__/static/styles.css" />
   </head>
   <body class="workspace-page">
+    <div id="workspaceLoading" class="workspace-loading" role="status" aria-live="polite" aria-label="正在加载工作区">
+      <div class="loading-card">
+        <div class="loading-brand"><span>FO</span><strong>正在准备你的工作区</strong></div>
+        <div class="loading-line loading-line-title"></div>
+        <div class="loading-line loading-line-copy"></div>
+        <div class="loading-pane-grid"><i></i><i></i><i></i></div>
+      </div>
+    </div>
     <header class="portal">
       <nav class="topbar">
-        <div class="brand">
+        <a class="brand" href="__BASE_PATH__/workspace/resumes" aria-label="返回简历库">
           <span class="brand-mark">FO</span>
           <span id="workspaceTitle">FastOnboarding</span>
-        </div>
+        </a>
         <div class="workspace-top-actions">
           <button id="topCreateResumeBtn" type="button" class="top-action" hidden>创建新的简历</button>
           <button id="topAddExperienceBtn" type="button" class="top-action" hidden>补充经历</button>
@@ -41,16 +49,16 @@
             <button id="showRegisterBtn" type="button" class="auth-tab">注册</button>
           </div>
           <form id="loginForm" class="auth-form">
-            <label>邮箱或账号<input id="loginEmail" autocomplete="username" value="test" /></label>
-            <label>密码<input id="loginPassword" type="password" autocomplete="current-password" value="test123" /></label>
+            <label>邮箱或账号<input id="loginEmail" autocomplete="username" /></label>
+            <label>密码<input id="loginPassword" type="password" autocomplete="current-password" /></label>
             <button type="submit">进入工作区</button>
             <button id="testLoginBtn" type="button" class="secondary">进入 test 测试账号</button>
           </form>
           <form id="registerForm" class="auth-form hidden">
-            <label>姓名<input id="registerName" autocomplete="name" value="张三" /></label>
-            <label>邮箱<input id="registerEmail" type="email" autocomplete="email" value="zhangsan@example.com" /></label>
-            <label>密码<input id="registerPassword" type="password" autocomplete="new-password" value="123456" /></label>
-            <label>目标岗位<input id="registerTargetTitle" value="AI 产品经理" /></label>
+            <label>姓名<input id="registerName" autocomplete="name" /></label>
+            <label>邮箱<input id="registerEmail" type="email" autocomplete="email" /></label>
+            <label>密码<input id="registerPassword" type="password" autocomplete="new-password" minlength="12" /></label>
+            <label>目标岗位<input id="registerTargetTitle" /></label>
             <button type="submit">创建账号</button>
           </form>
           <p id="authStatus" class="auth-status">请登录或注册后继续。</p>
@@ -118,6 +126,13 @@
         </aside>
 
         <section class="resume-pane">
+          <div class="resume-stage-bar" aria-label="简历编辑工作流">
+            <div>
+              <p>Resume editor</p>
+              <span>从真实经历到岗位表达</span>
+            </div>
+            <span class="stage-status"><i></i><span id="editorStageStatus">正文草稿</span></span>
+          </div>
           <div class="resume-paper">
             <div class="resume-document-head">
               <input id="name" class="resume-name-input" value="张三" aria-label="姓名" />
@@ -167,39 +182,24 @@
               <p class="eyebrow">AI</p>
               <h2>真实性助手</h2>
             </div>
-            <button id="aiReviewBtn" type="button">分析</button>
           </div>
-          <div class="ai-action-grid">
-            <button id="aiFilterBtn" type="button" class="ai-tool">AI 读取全部素材并插入</button>
-            <button id="aiExperienceBtn" type="button" class="ai-tool">智能润色经历描述</button>
-            <button id="generateBtn" type="button" class="ai-tool">生成 AI 简历评价建议</button>
-          </div>
+          <p class="ai-trust-mark"><span>✦</span> 只基于已录入的真实经历提供建议</p>
           <p class="auth-note">AI 只能根据你已经输入的内容整理、追问和改写；不能编造公司、学校、数字、结果或经历。</p>
           <div class="chat-box">
             <pre id="aiReply" class="assistant-output">等待分析</pre>
             <label class="chat-input-label">输入问题<textarea id="aiMessage">请检查我当前经历是否真实、完整，并告诉我还应该补哪些证据。</textarea></label>
-          </div>
-          <div class="ai-insights">
-            <section>
-              <h3>匹配 Skill</h3>
-              <div id="aiSkills" class="chips">未匹配</div>
-            </section>
-            <section>
-              <h3>建议</h3>
-              <ul id="aiSuggestions"></ul>
-            </section>
-            <section>
-              <h3>需要追问</h3>
-              <ul id="aiQuestions"></ul>
-            </section>
-            <section>
-              <h3>真实性提醒</h3>
-              <ul id="aiWarnings"></ul>
-            </section>
-            <section>
-              <h3>状态</h3>
-              <div id="aiStatus" class="chips">未运行</div>
-            </section>
+            <div class="chat-composer-actions">
+              <button id="aiChatSubmitBtn" type="button" class="chat-send">发送</button>
+              <span id="aiStatus" class="sr-only" aria-live="polite">未运行</span>
+              <div class="chat-more">
+                <button id="aiMoreMenuBtn" type="button" class="chat-more-trigger" aria-label="更多 AI 对话选项" aria-haspopup="menu" aria-controls="aiMoreMenu" aria-expanded="false">＋</button>
+                <div id="aiMoreMenu" class="chat-more-menu" role="menu" aria-label="AI 对话选项">
+                  <button id="aiFilterBtn" type="button" class="ai-tool" role="menuitem">读取素材并插入</button>
+                  <button id="aiExperienceBtn" type="button" class="ai-tool" role="menuitem">润色当前经历</button>
+                  <button id="generateBtn" type="button" class="ai-tool" role="menuitem">生成简历评价</button>
+                </div>
+              </div>
+            </div>
           </div>
         </aside>
       </section>

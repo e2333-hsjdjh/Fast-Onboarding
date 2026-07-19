@@ -122,7 +122,7 @@ python3 scripts/serve_web.py \
 - `POST /api/generate`: 生成简历并保存用户、JD、素材快照和生成记录。
 - `POST /api/auth/register`: 注册正式账号并创建会话。
 - `POST /api/auth/login`: 登录并创建 30 天会话。
-- `GET /api/auth/session/{token}`: 恢复已保存会话。
+- `GET /api/auth/session`: 通过 HttpOnly 会话 Cookie 恢复已保存会话。
 - `POST /api/auth/test-session`: 进入内置 `test` 测试账号。
 - `POST /api/auth/test-reset`: 清空并恢复 `test` 账号的演示数据。
 - `GET /api/users/{user_id}`: 查询用户基础信息。
@@ -142,7 +142,9 @@ python3 scripts/serve_web.py \
 
 ### test 测试账号
 
-开发环境默认提供 `test` 账号，密码为 `test123`。首次打开工作区会自动进入该账号，后续由会话自动恢复，不需要重复登录。顶栏的“重置 test 数据”会清空该账号素材、简历、版本和记录，并创建一份新的演示简历；正式注册账号不会受到影响。
+仅当 `FAST_ONBOARDING_ENV=development` 时才提供 `test` 账号和重置接口；生产环境默认关闭。会话使用 HttpOnly、SameSite Cookie，生产环境另加 `Secure` 属性。公网部署必须由 HTTPS nginx 提供 TLS，并保持应用只绑定 `127.0.0.1`。
+
+正式账号密码至少 12 位，且不能使用常见或明显可猜测的弱密码。所有用户资源、AI 与生成接口均会核验 Cookie 会话归属；AI、生成与登录接口分别具有限流，单个 JSON 请求默认最大 1 MB（可用 `FAST_ONBOARDING_MAX_REQUEST_BYTES` 调整）。
 
 ## Word 简历模板
 

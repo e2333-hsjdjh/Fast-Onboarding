@@ -1,5 +1,6 @@
 :root {
-  color-scheme: light;
+  /* Native controls and scrollbars follow the active system appearance. */
+  color-scheme: light dark;
   --bg: #f5f7f8;
   --panel: #ffffff;
   --ink: #15191f;
@@ -11,6 +12,223 @@
   --blue: #315b8a;
   --warn: #9a5b13;
   --shadow: 0 18px 50px rgba(23, 32, 42, 0.08);
+}
+
+/* High-frequency authoring surface: calm graphite chrome and paper-like editing. */
+.workspace-page {
+  --workspace-canvas: #090b0d;
+  --workspace-surface: rgba(20, 24, 27, 0.88);
+  --workspace-border: rgba(255, 255, 255, 0.11);
+  --workspace-border-strong: rgba(210, 255, 239, 0.24);
+  --workspace-text: #f3f7f4;
+  --workspace-muted: #98a5a0;
+  --workspace-signal: #b7f9d7;
+  --workspace-signal-ink: #082419;
+  --workspace-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(103, 234, 176, 0.13), transparent 27rem),
+    radial-gradient(circle at 94% 30%, rgba(89, 141, 255, 0.1), transparent 26rem),
+    var(--workspace-canvas);
+  color: var(--workspace-text);
+}
+
+.workspace-page .portal {
+  min-height: 64px;
+  border-bottom-color: var(--workspace-border);
+  background: rgba(9, 11, 13, 0.76);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(20px) saturate(125%);
+}
+
+.workspace-page .brand,
+.workspace-page .auth-copy h1,
+.workspace-page .library-heading h1,
+.workspace-page .pane-header h2 { color: var(--workspace-text); letter-spacing: -0.035em; }
+
+.workspace-page .brand-mark {
+  border-color: var(--workspace-border-strong);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #d4ffe7, #74e4aa);
+  box-shadow: 0 7px 20px rgba(117, 232, 174, 0.16);
+  color: #09251a;
+}
+
+.workspace-page .top-action,
+.workspace-page .user-badge {
+  border-color: var(--workspace-border);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--workspace-text);
+}
+
+.workspace-page .top-action:hover,
+.workspace-page .user-badge:hover {
+  border-color: var(--workspace-border-strong);
+  background: rgba(183, 249, 215, 0.09);
+  color: var(--workspace-signal);
+}
+
+.workspace-page .workspace-home { position: relative; }
+.workspace-page .workspace-home::before {
+  position: fixed;
+  z-index: -1;
+  inset: 64px 0 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  content: "";
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 78%);
+  pointer-events: none;
+}
+
+.workspace-page .auth-copy p:not(.eyebrow),
+.workspace-page .library-heading p,
+.workspace-page .auth-status { color: var(--workspace-muted); }
+
+.workspace-page .auth-card,
+.workspace-page .source-pane,
+.workspace-page .ai-pane,
+.workspace-page .resume-pane {
+  border-color: var(--workspace-border);
+  background: var(--workspace-surface);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(16px);
+}
+
+.workspace-page .auth-card,
+.workspace-page .source-pane,
+.workspace-page .ai-pane,
+.workspace-page .resume-pane { border-radius: 16px; }
+
+.workspace-page .auth-tabs { border: 1px solid var(--workspace-border); background: rgba(0, 0, 0, 0.2); }
+.workspace-page .auth-tab,
+.workspace-page .library-tab,
+.workspace-page .source-category { color: var(--workspace-muted); }
+.workspace-page .auth-tab.active,
+.workspace-page .library-tab.active {
+  border-color: rgba(183, 249, 215, 0.17);
+  background: rgba(183, 249, 215, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(183, 249, 215, 0.13);
+  color: var(--workspace-signal);
+}
+
+.workspace-page .round-action,
+.workspace-page .segmented {
+  border-color: var(--workspace-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--workspace-text);
+}
+.workspace-page .segmented.active { background: rgba(183, 249, 215, 0.14); color: var(--workspace-signal); }
+.workspace-page .black-action {
+  border: 1px solid rgba(183, 249, 215, 0.25);
+  background: var(--workspace-signal);
+  box-shadow: 0 9px 24px rgba(113, 231, 169, 0.18);
+  color: var(--workspace-signal-ink);
+}
+
+.workspace-page .resume-card {
+  min-height: 204px;
+  border-color: var(--workspace-border);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(29, 35, 39, 0.94), rgba(17, 21, 24, 0.94));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+.workspace-page .resume-card:nth-child(3n + 1),
+.workspace-page .resume-card:nth-child(3n + 2) { background: linear-gradient(145deg, rgba(29, 35, 39, 0.94), rgba(17, 21, 24, 0.94)); }
+.workspace-page .resume-card:hover {
+  border-color: rgba(183, 249, 215, 0.35);
+  background: linear-gradient(145deg, rgba(35, 47, 44, 0.97), rgba(17, 25, 23, 0.97));
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.25);
+  transform: translateY(-3px);
+}
+.workspace-page .resume-card strong { color: var(--workspace-text); }
+.workspace-page .resume-card span:last-child,
+.workspace-page .resume-card-menu { color: var(--workspace-muted); }
+.workspace-page .create-card { border-style: dashed; background: rgba(255, 255, 255, 0.025); }
+.workspace-page .big-plus,
+.workspace-page .resume-card-icon { border: 1px solid rgba(183, 249, 215, 0.14); background: rgba(183, 249, 215, 0.1); color: var(--workspace-signal); }
+
+.workspace-page .pane-header,
+.workspace-page .source-detail,
+.workspace-page .ai-insights { border-color: var(--workspace-border); }
+.workspace-page .eyebrow { color: var(--workspace-signal); }
+.workspace-page .source-add,
+.workspace-page .insert-experience-btn,
+.workspace-page .ai-tool,
+.workspace-page .experience-type-grid button {
+  border: 1px solid var(--workspace-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--workspace-text);
+}
+.workspace-page .source-add { width: auto; margin: 0; border-radius: 9px; }
+.workspace-page .source-category.active,
+.workspace-page .source-category:hover,
+.workspace-page .ai-tool:hover,
+.workspace-page .experience-type-grid button:hover { background: rgba(183, 249, 215, 0.1); color: var(--workspace-signal); }
+.workspace-page .source-search,
+.workspace-page .assistant-output,
+.workspace-page .template-guide section { border-color: var(--workspace-border); background: rgba(0, 0, 0, 0.16); color: var(--workspace-muted); }
+.workspace-page .source-search button { background: rgba(183, 249, 215, 0.1); color: var(--workspace-signal); }
+.workspace-page .source-detail-head span,
+.workspace-page .guide-chip-list span { border-color: var(--workspace-border); background: rgba(255, 255, 255, 0.03); color: var(--workspace-muted); }
+.workspace-page .auth-note,
+.workspace-page .record-meta,
+.workspace-page .empty-record,
+.workspace-page .template-guide ul,
+.workspace-page .template-intro p:last-child { color: var(--workspace-muted); }
+
+.workspace-page .resume-pane { background: rgba(10, 13, 15, 0.74); }
+.workspace-page .resume-paper {
+  min-height: calc(100% - 4px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  background: #fbfaf6;
+  box-shadow: 0 28px 50px rgba(0, 0, 0, 0.3);
+  color: #1f2925;
+  padding: clamp(24px, 4vw, 54px);
+}
+.workspace-page .resume-document-head { border-bottom-color: #1d3027; }
+.workspace-page .resume-name-input { color: #17231e; }
+.workspace-page .resume-title-input { color: #53675d; }
+.workspace-page .resume-section { border-bottom-color: #dce4dc; }
+.workspace-page .resume-section h3 { color: #14714c; }
+.workspace-page .resume-section textarea { border-color: transparent; background: rgba(232, 241, 234, 0.55); color: #22312a; }
+
+.workspace-page input,
+.workspace-page textarea,
+.workspace-page select { border-color: var(--workspace-border); background: rgba(0, 0, 0, 0.16); color: var(--workspace-text); }
+.workspace-page .resume-paper input,
+.workspace-page .resume-paper textarea { color: #22312a; }
+.workspace-page input:focus,
+.workspace-page textarea:focus,
+.workspace-page select:focus { border-color: rgba(183, 249, 215, 0.65); box-shadow: 0 0 0 3px rgba(183, 249, 215, 0.12); outline: none; }
+
+.workspace-page .experience-dialog { border: 1px solid var(--workspace-border); border-radius: 18px; background: #151a1e; color: var(--workspace-text); }
+.workspace-page .experience-dialog::backdrop { background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(7px); }
+.workspace-page .template-intro,
+.workspace-page .experience-ai-draft { border-color: rgba(183, 249, 215, 0.2); background: rgba(183, 249, 215, 0.07); }
+.workspace-page .template-intro h3,
+.workspace-page .template-guide h4,
+.workspace-page .experience-ai-draft h4,
+.workspace-page .experience-ai-draft ul { color: var(--workspace-text); }
+
+.workspace-page button,
+.workspace-page .top-action,
+.workspace-page .user-badge { transition: transform 140ms var(--workspace-ease-out), background 180ms var(--workspace-ease-out), border-color 180ms var(--workspace-ease-out), box-shadow 180ms var(--workspace-ease-out); }
+.workspace-page button:not(:disabled):active,
+.workspace-page .top-action:active,
+.workspace-page .user-badge:active { transform: scale(0.97); }
+.workspace-page button.secondary { border-color: var(--workspace-border); background: rgba(255, 255, 255, 0.04); color: var(--workspace-text); }
+.workspace-page button.secondary:hover { background: rgba(255, 255, 255, 0.1); }
+.workspace-page .black-action:hover { background: #d1ffe6; color: #082419; }
+
+@media (max-width: 1350px) {
+  .workspace-page .ai-pane { background: linear-gradient(120deg, rgba(21, 29, 27, 0.94), rgba(18, 23, 27, 0.94)); }
+}
+@media (max-width: 620px) {
+  .workspace-page .resume-paper { padding: 22px 18px; }
+  .workspace-page .resume-card { min-height: 170px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page *, .workspace-page *::before, .workspace-page *::after { scroll-behavior: auto !important; transition-duration: 1ms !important; }
 }
 
 * {
@@ -45,25 +263,23 @@ body {
 }
 
 .home-page {
-  background: #071018;
+  background: #0d1411;
   color: #fff;
 }
 
 .home-page .portal {
   min-height: 100vh;
   border-bottom: 0;
-  background: #071018;
+  background: #0d1411;
 }
 
 .home-page .portal::before {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: url("__BASE_PATH__/static/assets/resume-hero-3d-v2.png") center bottom / cover no-repeat;
+  background: radial-gradient(ellipse 60% 48% at 50% 44%, rgba(127, 225, 169, 0.12), transparent 72%);
   content: "";
-  filter: brightness(1.24) contrast(1.08) saturate(1.15);
-  transform: scale(1.01);
-  transform-origin: center bottom;
+  pointer-events: none;
 }
 
 .home-page .portal::after {
@@ -71,8 +287,7 @@ body {
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(circle at 50% 42%, rgba(5, 12, 18, 0.06), transparent 35%),
-    linear-gradient(180deg, rgba(4, 10, 18, 0.06) 0%, transparent 40%, rgba(4, 10, 18, 0.08) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 36%, rgba(0, 0, 0, 0.1) 100%);
   content: "";
   pointer-events: none;
 }
@@ -246,17 +461,12 @@ a {
 .home-page .portal-copy h1 {
   max-width: 100%;
   margin: 0 auto;
-  background: linear-gradient(180deg, #ffffff 8%, #e8fff8 42%, #bcd5d2 100%);
-  background-clip: text;
-  color: transparent;
+  color: #f4f8f5;
   font-family: ui-sans-serif, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 116px;
+  font-size: clamp(64px, 9vw, 104px);
   font-weight: 760;
-  letter-spacing: 0;
-  line-height: 0.9;
-  text-shadow:
-    0 14px 42px rgba(0, 0, 0, 0.48),
-    0 0 34px rgba(117, 255, 232, 0.12);
+  letter-spacing: -0.055em;
+  line-height: 0.92;
   white-space: nowrap;
 }
 
@@ -271,15 +481,13 @@ a {
 .home-page .portal-copy p:not(.eyebrow) {
   max-width: 760px;
   margin: 24px auto 0;
-  color: rgba(242, 249, 250, 0.82);
+  color: rgba(231, 240, 234, 0.74);
   font-size: 18px;
-  text-shadow: 0 10px 36px rgba(0, 0, 0, 0.42);
 }
 
 .home-page .eyebrow {
-  color: #b9fff3;
-  letter-spacing: 0;
-  text-shadow: 0 0 28px rgba(91, 255, 225, 0.34);
+  color: #9ce2b8;
+  letter-spacing: 0.08em;
 }
 
 .portal-actions {
@@ -311,17 +519,16 @@ a {
 
 .home-page .primary-action {
   min-height: 48px;
-  border: 1px solid rgba(194, 255, 244, 0.4);
-  background: linear-gradient(135deg, rgba(229, 255, 249, 0.22), rgba(55, 166, 152, 0.18));
-  box-shadow:
-    0 20px 70px rgba(56, 255, 221, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(18px);
+  border: 1px solid #8bdbac;
+  background: #8bdbac;
+  box-shadow: none;
+  color: #102219;
 }
 
 .home-page .primary-action:hover {
-  border-color: rgba(215, 255, 248, 0.7);
-  background: linear-gradient(135deg, rgba(236, 255, 251, 0.3), rgba(66, 189, 173, 0.24));
+  border-color: #b6f2d0;
+  background: #b6f2d0;
+  color: #102219;
 }
 
 .primary-action:hover {
@@ -961,16 +1168,15 @@ a {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(7, 16, 24, 0.22);
-  color: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(214, 236, 221, 0.16);
+  border-radius: 0;
+  background: transparent;
+  color: rgba(231, 240, 234, 0.55);
 }
 
 .portal-footer-strip span {
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.035);
+  background: transparent;
   text-align: center;
   font-size: 13px;
   font-weight: 800;
@@ -984,14 +1190,13 @@ a {
 }
 
 .portal-signal-row span {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(180, 230, 198, 0.18);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: transparent;
   padding: 7px 12px;
   color: rgba(237, 255, 250, 0.78);
   font-size: 12px;
   font-weight: 800;
-  backdrop-filter: blur(16px);
 }
 
 .portal-preview {
@@ -1886,6 +2091,323 @@ pre.assistant-output {
   }
 }
 
+/*
+ * System appearance: the workspace follows the OS without storing a separate
+ * user preference. Dark remains the focused authoring default; light keeps the
+ * same green signal, spacing and hierarchy with quieter paper-like surfaces.
+ */
+@media (prefers-color-scheme: light) {
+  .workspace-page {
+    color-scheme: light;
+    --workspace-canvas: #f1f5f2;
+    --workspace-surface: rgba(255, 255, 255, 0.82);
+    --workspace-border: rgba(35, 69, 51, 0.14);
+    --workspace-border-strong: rgba(24, 114, 78, 0.32);
+    --workspace-text: #17231d;
+    --workspace-muted: #62736a;
+    --workspace-signal: #14714c;
+    --workspace-signal-ink: #f4fff7;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(72, 177, 124, 0.16), transparent 27rem),
+      radial-gradient(circle at 94% 30%, rgba(103, 148, 225, 0.12), transparent 26rem),
+      var(--workspace-canvas);
+  }
+
+  .workspace-page .portal {
+    background: rgba(248, 252, 249, 0.8);
+    box-shadow: 0 12px 36px rgba(35, 69, 51, 0.08);
+  }
+  .workspace-page .workspace-home::before {
+    background-image: linear-gradient(rgba(31, 76, 54, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(31, 76, 54, 0.055) 1px, transparent 1px);
+  }
+  .workspace-page .auth-card,
+  .workspace-page .source-pane,
+  .workspace-page .ai-pane,
+  .workspace-page .resume-pane,
+  .workspace-page .resume-card,
+  .workspace-page .experience-dialog {
+    box-shadow: 0 18px 42px rgba(35, 69, 51, 0.08), inset 0 1px rgba(255, 255, 255, 0.66);
+  }
+  .workspace-page .auth-tabs,
+  .workspace-page .source-search,
+  .workspace-page .assistant-output,
+  .workspace-page .template-guide section,
+  .workspace-page input,
+  .workspace-page textarea,
+  .workspace-page select {
+    background: rgba(241, 247, 243, 0.78);
+  }
+  .workspace-page .resume-card,
+  .workspace-page .resume-card:nth-child(3n + 1),
+  .workspace-page .resume-card:nth-child(3n + 2) {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(240, 247, 242, 0.94));
+  }
+  .workspace-page .resume-card:hover {
+    background: linear-gradient(145deg, #ffffff, #e9f7ee);
+    box-shadow: 0 20px 42px rgba(35, 69, 51, 0.14);
+  }
+  .workspace-page .create-card { background: rgba(255, 255, 255, 0.5); }
+  .workspace-page .resume-pane { background: rgba(232, 241, 235, 0.78); }
+  .workspace-page .resume-paper {
+    border-color: rgba(25, 91, 61, 0.17);
+    background: #fbfdfb;
+    color: #1b2a21;
+  }
+  .workspace-page .resume-document-head { border-bottom-color: rgba(25, 91, 61, 0.24); }
+  .workspace-page .resume-name-input { color: #16261d; }
+  .workspace-page .resume-title-input,
+  .workspace-page .resume-contact-row input { color: #607168; }
+  .workspace-page .resume-contact-row input { border-bottom-color: rgba(25, 91, 61, 0.18); }
+  .workspace-page .resume-section { border-bottom-color: rgba(25, 91, 61, 0.12); }
+  .workspace-page .resume-section::before { background: rgba(20, 113, 76, 0.12); }
+  .workspace-page .resume-section textarea {
+    border-color: rgba(25, 91, 61, 0.1);
+    background: #f0f6f1;
+    color: #203128;
+  }
+  .workspace-page .resume-section textarea:focus {
+    border-color: rgba(20, 113, 76, 0.42);
+    background: #f8fcf9;
+  }
+  .workspace-page .resume-section.is-editing { background: linear-gradient(90deg, rgba(20, 113, 76, 0.07), transparent 60%); }
+  .workspace-page .experience-dialog { background: #fbfdfb; }
+  .workspace-page .experience-dialog::backdrop { background: rgba(29, 47, 37, 0.32); }
+  .workspace-page .ai-pane .auth-note {
+    border-color: rgba(20, 113, 76, 0.16);
+    background: rgba(20, 113, 76, 0.065);
+    color: #607168;
+  }
+  @media (max-width: 1350px) {
+    .workspace-page .ai-pane { background: linear-gradient(120deg, rgba(246, 251, 247, 0.96), rgba(237, 246, 240, 0.96)); }
+  }
+}
+
+/* Final light-mode library surface: intentionally after all dark authoring rules. */
+@media (prefers-color-scheme: light) {
+  .workspace-page .portal { background: rgba(248, 252, 249, 0.92); box-shadow: 0 1px 0 rgba(35, 69, 51, 0.1), 0 12px 30px rgba(35, 69, 51, 0.06); }
+  .workspace-page .brand, .workspace-page .library-heading h1 { color: #17231d; }
+  .workspace-page .top-action, .workspace-page .user-badge { border-color: rgba(35, 69, 51, 0.14); background: rgba(255, 255, 255, 0.7); color: #304239; }
+  .workspace-page .top-action:hover, .workspace-page .user-badge:hover { border-color: rgba(20, 113, 76, 0.3); background: #f0f8f2; color: #14714c; }
+  .workspace-page .library-tab { color: #607168; }
+  .workspace-page .library-tab.active { border-color: rgba(20, 113, 76, 0.16); background: #edf8f0; color: #14714c; box-shadow: none; }
+  .workspace-page .round-action, .workspace-page .segmented { border-color: rgba(35, 69, 51, 0.14); background: rgba(255, 255, 255, 0.74); color: #405148; }
+  .workspace-page .segmented.active { background: #e8f6ec; color: #14714c; }
+  .workspace-page .black-action { border-color: #14714c; background: #14714c; color: #f5fff7; box-shadow: none; }
+  .workspace-page .resume-card, .workspace-page .resume-card:nth-child(3n + 1), .workspace-page .resume-card:nth-child(3n + 2) { border-color: rgba(35, 69, 51, 0.13); background: #fbfdfb; box-shadow: 0 12px 28px rgba(35, 69, 51, 0.07), inset 0 1px rgba(255, 255, 255, 0.8); }
+  .workspace-page .resume-card:hover { border-color: rgba(20, 113, 76, 0.3); background: #f5fbf6; box-shadow: 0 16px 32px rgba(35, 69, 51, 0.1), inset 0 1px rgba(255, 255, 255, 0.82); }
+  .workspace-page .create-card { background: rgba(255, 255, 255, 0.64); }
+  .workspace-page .resume-card strong { color: #1b2a21; }
+  .workspace-page .resume-card span:last-child, .workspace-page .resume-card-menu { color: #6b7c72; }
+  .workspace-page .resume-card-icon { border-color: rgba(20, 113, 76, 0.13); background: #eff8f1; color: #14714c; }
+  .workspace-page .workspace-loading { background: rgba(244, 249, 245, 0.92); backdrop-filter: blur(14px); }
+  .workspace-page .loading-card { border-color: rgba(35, 69, 51, 0.13); background: rgba(255, 255, 255, 0.88); box-shadow: 0 20px 56px rgba(35, 69, 51, 0.12), inset 0 1px rgba(255, 255, 255, 0.9); }
+  .workspace-page .loading-brand { color: #1b2a21; }
+  .workspace-page .loading-line, .workspace-page .loading-pane-grid i { background: linear-gradient(100deg, rgba(30, 95, 62, 0.05) 10%, rgba(20, 113, 76, 0.16) 40%, rgba(30, 95, 62, 0.05) 65%); }
+}
+
+/* Keep library chrome in the same light system after every dark-authoring override. */
+@media (prefers-color-scheme: light) {
+  .workspace-page .portal {
+    background: rgba(248, 252, 249, 0.92);
+    box-shadow: 0 1px 0 rgba(35, 69, 51, 0.1), 0 12px 30px rgba(35, 69, 51, 0.06);
+  }
+  .workspace-page .brand,
+  .workspace-page .library-heading h1 { color: #17231d; }
+  .workspace-page .top-action,
+  .workspace-page .user-badge {
+    border-color: rgba(35, 69, 51, 0.14);
+    background: rgba(255, 255, 255, 0.7);
+    color: #304239;
+  }
+  .workspace-page .top-action:hover,
+  .workspace-page .user-badge:hover {
+    border-color: rgba(20, 113, 76, 0.3);
+    background: #f0f8f2;
+    color: #14714c;
+  }
+  .workspace-page .library-tab { color: #607168; }
+  .workspace-page .library-tab.active {
+    border-color: rgba(20, 113, 76, 0.16);
+    background: #edf8f0;
+    color: #14714c;
+    box-shadow: none;
+  }
+  .workspace-page .round-action,
+  .workspace-page .segmented {
+    border-color: rgba(35, 69, 51, 0.14);
+    background: rgba(255, 255, 255, 0.74);
+    color: #405148;
+  }
+  .workspace-page .segmented.active { background: #e8f6ec; color: #14714c; }
+  .workspace-page .black-action {
+    border-color: #14714c;
+    background: #14714c;
+    color: #f5fff7;
+    box-shadow: none;
+  }
+  .workspace-page .resume-card,
+  .workspace-page .resume-card:nth-child(3n + 1),
+  .workspace-page .resume-card:nth-child(3n + 2) {
+    border-color: rgba(35, 69, 51, 0.13);
+    background: #fbfdfb;
+    box-shadow: 0 12px 28px rgba(35, 69, 51, 0.07), inset 0 1px rgba(255, 255, 255, 0.8);
+  }
+  .workspace-page .resume-card:hover {
+    border-color: rgba(20, 113, 76, 0.3);
+    background: #f5fbf6;
+    box-shadow: 0 16px 32px rgba(35, 69, 51, 0.1), inset 0 1px rgba(255, 255, 255, 0.82);
+  }
+  .workspace-page .create-card { background: rgba(255, 255, 255, 0.64); }
+  .workspace-page .resume-card strong { color: #1b2a21; }
+  .workspace-page .resume-card span:last-child,
+  .workspace-page .resume-card-menu { color: #6b7c72; }
+  .workspace-page .resume-card-icon {
+    border-color: rgba(20, 113, 76, 0.13);
+    background: #eff8f1;
+    color: #14714c;
+  }
+  .workspace-page .workspace-loading {
+    background: rgba(244, 249, 245, 0.92);
+    backdrop-filter: blur(14px);
+  }
+  .workspace-page .loading-card {
+    border-color: rgba(35, 69, 51, 0.13);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 20px 56px rgba(35, 69, 51, 0.12), inset 0 1px rgba(255, 255, 255, 0.9);
+  }
+  .workspace-page .loading-brand { color: #1b2a21; }
+  .workspace-page .loading-line,
+  .workspace-page .loading-pane-grid i {
+    background: linear-gradient(100deg, rgba(30, 95, 62, 0.05) 10%, rgba(20, 113, 76, 0.16) 40%, rgba(30, 95, 62, 0.05) 65%);
+  }
+}
+
+/* Desktop editor: keep the chrome fixed and let each column own its scroll range. */
+@media (min-width: 1351px) {
+  .workspace-page.resume-editor-active {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .workspace-page.resume-editor-active .portal {
+    position: relative;
+    top: auto;
+  }
+  .workspace-page.resume-editor-active .workspace-home {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding: clamp(10px, 1.2vw, 18px);
+  }
+  .workspace-page.resume-editor-active .resume-editor-shell {
+    height: 100%;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .workspace-page.resume-editor-active .source-pane,
+  .workspace-page.resume-editor-active .resume-pane,
+  .workspace-page.resume-editor-active .ai-pane {
+    position: relative;
+    top: auto;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
+/* This must come after the dark chrome override so light never inherits a graphite header. */
+@media (prefers-color-scheme: light) {
+  .workspace-page .portal {
+    background: rgba(248, 252, 249, 0.88);
+    box-shadow: 0 1px 0 rgba(35, 69, 51, 0.1), 0 12px 36px rgba(35, 69, 51, 0.08);
+  }
+}
+
+/* Header identity fields read as typography, not filled controls. */
+.workspace-page .resume-name-input,
+.workspace-page .resume-title-input,
+.workspace-page .resume-name-input:focus,
+.workspace-page .resume-title-input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.workspace-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.workspace-page .chat-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.workspace-page .chat-send,
+.workspace-page .chat-more-trigger {
+  min-height: 32px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 9px;
+  font-weight: 760;
+}
+.workspace-page .chat-send {
+  min-width: 66px;
+  background: var(--workspace-signal);
+  color: var(--workspace-signal-ink);
+}
+.workspace-page .chat-send.is-running { background: rgba(255, 255, 255, 0.08); color: var(--workspace-text); }
+.workspace-page .chat-more { position: relative; }
+.workspace-page .chat-more-trigger {
+  width: 32px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--workspace-signal);
+  font-size: 21px;
+  line-height: 1;
+}
+.workspace-page .chat-more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: calc(var(--layer-header) + 1);
+  display: grid;
+  width: max-content;
+  min-width: 184px;
+  gap: 4px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 12px;
+  background: rgba(20, 24, 27, 0.98);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.25);
+  padding: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(5px) scale(0.98);
+  transition: opacity 160ms var(--workspace-ease-out), transform 160ms var(--workspace-ease-out);
+}
+.workspace-page .chat-more:hover .chat-more-menu,
+.workspace-page .chat-more:focus-within .chat-more-menu,
+.workspace-page .chat-more-menu.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.workspace-page .chat-more-menu .ai-tool { width: 100%; border: 0; border-radius: 8px; padding: 9px 10px; text-align: left; }
+@media (prefers-color-scheme: light) {
+  .workspace-page .chat-more-menu {
+    background: rgba(251, 253, 251, 0.98);
+    box-shadow: 0 16px 34px rgba(35, 69, 51, 0.15);
+  }
+}
+
 @media (max-width: 620px) {
   .workspace-page .portal {
     padding: 8px 12px;
@@ -1982,5 +2504,486 @@ pre.assistant-output {
   .dialog-actions button {
     width: 100%;
     margin-top: 0;
+  }
+}
+
+/* Keep the workspace refresh after legacy responsive rules in the cascade. */
+.workspace-page { background: var(--workspace-canvas); }
+.workspace-page .portal { border-bottom-color: var(--workspace-border); background: rgba(9, 11, 13, 0.76); box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16); backdrop-filter: blur(20px) saturate(125%); }
+.workspace-page .auth-card,
+.workspace-page .source-pane,
+.workspace-page .ai-pane,
+.workspace-page .resume-pane { border-color: var(--workspace-border); background: var(--workspace-surface); border-radius: 16px; }
+.workspace-page .source-add { width: auto; margin: 0; border-radius: 9px; }
+.workspace-page .resume-card { border-color: var(--workspace-border); border-radius: 14px; background: linear-gradient(145deg, rgba(29, 35, 39, 0.94), rgba(17, 21, 24, 0.94)); }
+.workspace-page .resume-card:nth-child(3n + 1),
+.workspace-page .resume-card:nth-child(3n + 2) { background: linear-gradient(145deg, rgba(29, 35, 39, 0.94), rgba(17, 21, 24, 0.94)); }
+.workspace-page .resume-paper { border: 1px solid rgba(255, 255, 255, 0.45); background: #fbfaf6; color: #1f2925; padding: clamp(24px, 4vw, 54px); }
+.workspace-page .resume-section textarea { background: rgba(232, 241, 234, 0.55); color: #22312a; }
+.workspace-page .ai-pane { background: var(--workspace-surface); }
+@media (max-width: 1350px) { .workspace-page .ai-pane { background: linear-gradient(120deg, rgba(21, 29, 27, 0.94), rgba(18, 23, 27, 0.94)); } }
+@media (max-width: 620px) { .workspace-page .resume-paper { padding: 22px 18px; } }
+
+/* Second-pass authoring hierarchy and purposeful interaction feedback. */
+.workspace-page .resume-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  scrollbar-color: rgba(183, 249, 215, 0.34) transparent;
+}
+
+.workspace-page .resume-stage-bar {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  border-bottom: 1px solid var(--workspace-border);
+  background: rgba(15, 19, 22, 0.82);
+  padding: 12px clamp(18px, 2vw, 30px);
+  backdrop-filter: blur(16px);
+}
+
+.workspace-page .resume-stage-bar p {
+  margin: 0 0 3px;
+  color: var(--workspace-signal);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.workspace-page .resume-stage-bar > div > span {
+  color: var(--workspace-muted);
+  font-size: 12px;
+}
+
+.workspace-page .stage-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(183, 249, 215, 0.16);
+  border-radius: 999px;
+  background: rgba(183, 249, 215, 0.08);
+  padding: 6px 10px;
+  color: #d8ffea;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.workspace-page .stage-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--workspace-signal);
+  box-shadow: 0 0 0 4px rgba(183, 249, 215, 0.1);
+}
+
+.workspace-page .resume-paper {
+  width: min(calc(100% - clamp(20px, 3vw, 48px)), 860px);
+  margin: clamp(20px, 3vw, 34px) auto;
+  font-family: "Iowan Old Style", "Songti SC", STSong, serif;
+}
+
+.workspace-page .resume-paper input,
+.workspace-page .resume-paper textarea {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.workspace-page .resume-document-head {
+  position: relative;
+  padding: 0 0 22px 20px;
+}
+
+.workspace-page .resume-document-head::before {
+  position: absolute;
+  top: 3px;
+  bottom: 23px;
+  left: 0;
+  width: 4px;
+  border-radius: 99px;
+  background: linear-gradient(var(--workspace-signal), #3f8d6b);
+  content: "";
+}
+
+.workspace-page .resume-name-input,
+.workspace-page .resume-title-input {
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  transition: border-color 180ms var(--workspace-ease-out), background 180ms var(--workspace-ease-out);
+}
+
+.workspace-page .resume-name-input:focus,
+.workspace-page .resume-title-input:focus {
+  border-bottom-color: #8bc9a6;
+  background: rgba(183, 249, 215, 0.11);
+  box-shadow: none;
+}
+
+.workspace-page .resume-contact-row { margin-top: 16px; }
+.workspace-page .resume-contact-row input {
+  border: 0;
+  border-bottom: 1px solid #d6dfd6;
+  border-radius: 0;
+  background: transparent;
+  padding: 7px 0;
+  font-size: 12px;
+}
+.workspace-page .resume-contact-row input:focus { border-bottom-color: #23805a; box-shadow: none; }
+
+.workspace-page .resume-paper { counter-reset: resume-section; }
+.workspace-page .resume-section {
+  position: relative;
+  border-bottom-color: #e4e9e3;
+  padding: 24px 0;
+  transition: transform 180ms var(--workspace-ease-out), background 180ms var(--workspace-ease-out), box-shadow 180ms var(--workspace-ease-out);
+}
+.workspace-page .resume-section::before {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: #e5f3e9;
+  color: #14714c;
+  content: counter(resume-section, decimal-leading-zero);
+  counter-increment: resume-section;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+.workspace-page .resume-section h3 { display: inline-block; margin-bottom: 12px; vertical-align: middle; }
+.workspace-page .resume-section textarea {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(232, 241, 234, 0.48);
+  transition: border-color 180ms var(--workspace-ease-out), background 180ms var(--workspace-ease-out), box-shadow 180ms var(--workspace-ease-out);
+}
+.workspace-page .resume-section textarea:focus { border-color: #a8d7b7; background: #fff; box-shadow: 0 8px 20px rgba(35, 80, 53, 0.08); }
+.workspace-page .resume-section.is-editing { border-radius: 12px; background: linear-gradient(90deg, rgba(183, 249, 215, 0.12), transparent 60%); transform: translateX(4px); }
+
+.workspace-page .source-category {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  padding-left: 16px;
+  transition: background 180ms var(--workspace-ease-out), color 180ms var(--workspace-ease-out), border-color 180ms var(--workspace-ease-out), transform 180ms var(--workspace-ease-out);
+}
+.workspace-page .source-category::before {
+  position: absolute;
+  top: 11px;
+  bottom: 11px;
+  left: 5px;
+  width: 3px;
+  border-radius: 99px;
+  background: var(--workspace-signal);
+  content: "";
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: opacity 160ms var(--workspace-ease-out), transform 180ms var(--workspace-ease-out);
+}
+.workspace-page .source-category:hover { transform: translateX(2px); }
+.workspace-page .source-category.active { border-color: rgba(183, 249, 215, 0.12); }
+.workspace-page .source-category.active::before { opacity: 1; transform: scaleY(1); }
+
+.workspace-page .ai-trust-mark {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 14px 2px;
+  border: 1px solid rgba(183, 249, 215, 0.13);
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(183, 249, 215, 0.09), rgba(183, 249, 215, 0.025));
+  padding: 10px 11px;
+  color: #c1d8cb;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.workspace-page .ai-trust-mark span { color: var(--workspace-signal); }
+.workspace-page .ai-action-grid { gap: 9px; }
+.workspace-page .ai-tool { position: relative; min-height: 56px; padding-left: 48px; }
+.workspace-page .ai-tool::before {
+  position: absolute;
+  left: 14px;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid rgba(183, 249, 215, 0.18);
+  border-radius: 7px;
+  background: rgba(183, 249, 215, 0.1);
+  color: var(--workspace-signal);
+  font-size: 12px;
+  content: "✦";
+}
+.workspace-page #aiExperienceBtn::before { content: "↗"; }
+.workspace-page #generateBtn::before { content: "✓"; }
+.workspace-page .ai-tool:hover { box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15); transform: translateY(-1px); }
+.workspace-page .ai-insights > section { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 11px; }
+.workspace-page .ai-insights > section:first-child { border-top: 0; padding-top: 0; }
+
+.workspace-page.workspace-view-enter .resume-library,
+.workspace-page.workspace-view-enter .resume-editor-shell { animation: workspace-panel-in 340ms var(--workspace-ease-out) both; }
+@keyframes workspace-panel-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 1350px) {
+  .workspace-page .resume-stage-bar { top: 0; }
+  .workspace-page .ai-pane { margin-top: 0; }
+}
+@media (max-width: 880px) {
+  .workspace-page .resume-stage-bar { min-height: 60px; padding: 10px 16px; }
+  .workspace-page .resume-paper { width: calc(100% - 24px); margin: 12px auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page.workspace-view-enter .resume-library,
+  .workspace-page.workspace-view-enter .resume-editor-shell { animation: none; }
+}
+
+/* Loading and surface polish: depth comes from layered light, not oversized shadows. */
+.workspace-loading {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(110, 242, 180, 0.15), transparent 28rem),
+    rgba(8, 11, 13, 0.94);
+  opacity: 1;
+  transition: opacity 220ms var(--workspace-ease-out), visibility 220ms var(--workspace-ease-out);
+  backdrop-filter: blur(14px);
+}
+.workspace-loading.is-exiting { opacity: 0; visibility: hidden; }
+.loading-card {
+  width: min(420px, calc(100vw - 40px));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background: rgba(22, 27, 30, 0.82);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36), inset 0 1px rgba(255, 255, 255, 0.08);
+  padding: 24px;
+}
+.loading-brand { display: flex; align-items: center; gap: 11px; margin-bottom: 30px; color: #f1f8f4; font-size: 14px; }
+.loading-brand span {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #d4ffe7, #74e4aa);
+  color: #09251a;
+  font-size: 11px;
+  font-weight: 900;
+}
+.loading-line,
+.loading-pane-grid i {
+  display: block;
+  border-radius: 9px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.05) 10%, rgba(183, 249, 215, 0.16) 40%, rgba(255, 255, 255, 0.05) 65%);
+  background-size: 220% 100%;
+  animation: workspace-shimmer 1.35s linear infinite;
+}
+.loading-line-title { width: 52%; height: 16px; }
+.loading-line-copy { width: 78%; height: 10px; margin-top: 12px; }
+.loading-pane-grid { display: grid; grid-template-columns: 0.8fr 1.6fr 0.95fr; gap: 9px; margin-top: 28px; }
+.loading-pane-grid i { height: 124px; }
+.loading-pane-grid i:nth-child(2) { animation-delay: 120ms; }
+.loading-pane-grid i:nth-child(3) { animation-delay: 240ms; }
+
+@keyframes workspace-shimmer { to { background-position: -120% 0; } }
+@keyframes workspace-spinner { to { transform: rotate(1turn); } }
+
+.workspace-page button:disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: progress;
+  opacity: 0.74;
+}
+.workspace-page button:disabled::after {
+  width: 11px;
+  height: 11px;
+  margin-left: 8px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  content: "";
+  animation: workspace-spinner 720ms linear infinite;
+}
+
+.workspace-page .resume-card,
+.workspace-page .source-pane,
+.workspace-page .ai-pane,
+.workspace-page .resume-pane,
+.workspace-page .experience-dialog,
+.workspace-page .auth-card { box-shadow: 0 18px 42px rgba(0, 0, 0, 0.14), inset 0 1px rgba(255, 255, 255, 0.04); }
+.workspace-page .resume-card { isolation: isolate; overflow: hidden; }
+.workspace-page .resume-card::after {
+  position: absolute;
+  z-index: -1;
+  inset: -55% 30% auto -45%;
+  height: 150%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(183, 249, 215, 0.13), transparent 65%);
+  content: "";
+  opacity: 0;
+  transform: translate3d(-12px, 12px, 0);
+  transition: opacity 240ms var(--workspace-ease-out), transform 360ms var(--workspace-ease-out);
+}
+.workspace-page .resume-card:hover::after { opacity: 1; transform: translate3d(0, 0, 0); }
+
+.workspace-page .experience-dialog[open] { animation: workspace-modal-in 240ms var(--workspace-ease-out) both; }
+@keyframes workspace-modal-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-loading,
+  .loading-line,
+  .loading-pane-grid i,
+  .workspace-page button:disabled::after,
+  .workspace-page .experience-dialog[open] { animation: none; transition: none; }
+}
+
+/* Explicit workspace layer scale keeps sticky, responsive and overlay states predictable. */
+.workspace-page {
+  --layer-base: 0;
+  --layer-pane: 1;
+  --layer-document: 2;
+  --layer-document-bar: 3;
+  --layer-header: 30;
+  --layer-overlay: 100;
+}
+.workspace-page .workspace-home { isolation: isolate; }
+.workspace-page .resume-editor-shell { position: relative; z-index: var(--layer-base); }
+.workspace-page .source-pane,
+.workspace-page .ai-pane { z-index: var(--layer-pane); }
+.workspace-page .resume-pane { position: relative; z-index: var(--layer-document); }
+.workspace-page .resume-stage-bar { z-index: var(--layer-document-bar); }
+.workspace-page .portal { z-index: var(--layer-header); }
+.workspace-page .workspace-loading { z-index: var(--layer-overlay); }
+
+.workspace-page .ai-pane .auth-note {
+  margin: 0 14px 14px;
+  border: 1px solid rgba(183, 249, 215, 0.12);
+  border-radius: 10px;
+  background: rgba(183, 249, 215, 0.055);
+  padding: 11px 12px;
+  color: #afbbb5;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* The document must grow with its sections; a flex item that shrinks leaks content onto the dark canvas. */
+.workspace-page .resume-paper {
+  flex: 0 0 auto;
+  border-color: rgba(183, 249, 215, 0.16);
+  background: #171d1a;
+  box-shadow: none;
+  color: #edf5ef;
+}
+.workspace-page .resume-document-head { border-bottom-color: rgba(183, 249, 215, 0.28); }
+.workspace-page .resume-name-input { color: #f4fbf6; }
+.workspace-page .resume-title-input { color: #b7c6bc; }
+.workspace-page .resume-name-input,
+.workspace-page .resume-title-input,
+.workspace-page .resume-name-input:focus,
+.workspace-page .resume-title-input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+.workspace-page .resume-name-input:focus,
+.workspace-page .resume-title-input:focus { border-bottom-color: var(--workspace-signal); }
+.workspace-page .resume-contact-row input { border-bottom-color: rgba(183, 249, 215, 0.18); color: #b7c6bc; }
+.workspace-page .resume-contact-row input:focus { border-bottom-color: var(--workspace-signal); }
+.workspace-page .resume-section { border-bottom-color: rgba(183, 249, 215, 0.11); }
+.workspace-page .resume-section::before { background: rgba(183, 249, 215, 0.12); color: var(--workspace-signal); }
+.workspace-page .resume-section h3 { color: var(--workspace-signal); }
+.workspace-page .resume-section textarea {
+  border-color: rgba(183, 249, 215, 0.08);
+  background: #111714;
+  box-shadow: none;
+  color: #e2ece5;
+}
+.workspace-page .resume-section textarea:focus {
+  border-color: rgba(183, 249, 215, 0.42);
+  background: #141c18;
+  box-shadow: none;
+}
+.workspace-page .resume-section.is-editing { background: linear-gradient(90deg, rgba(183, 249, 215, 0.07), transparent 60%); }
+
+@media (max-width: 880px) {
+  .workspace-page .topbar { align-items: flex-start; flex-wrap: wrap; }
+  .workspace-page .workspace-top-actions {
+    width: 100%;
+    overflow-x: auto;
+    padding: 2px 0 6px;
+    scrollbar-width: none;
+  }
+  .workspace-page .workspace-top-actions::-webkit-scrollbar { display: none; }
+  .workspace-page .workspace-top-actions .top-action,
+  .workspace-page .workspace-top-actions .user-badge {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+/* Keep system-light document surfaces after the final dark authoring overrides. */
+@media (prefers-color-scheme: light) {
+  .workspace-page .resume-stage-bar { border-bottom-color: rgba(25, 91, 61, 0.14); background: rgba(244, 249, 245, 0.94); box-shadow: inset 0 -1px rgba(255, 255, 255, 0.72); }
+  .workspace-page .resume-stage-bar p { color: #14714c; }
+  .workspace-page .resume-stage-bar > div > span { color: #62736a; }
+  .workspace-page .stage-status { border-color: rgba(20, 113, 76, 0.22); background: #edf8f0; color: #176440; }
+  .workspace-page .stage-status i { background: #16935e; box-shadow: 0 0 0 4px rgba(22, 147, 94, 0.1); }
+  .workspace-page .portal { background: rgba(248, 252, 249, 0.92); box-shadow: 0 1px 0 rgba(35, 69, 51, 0.1), 0 12px 30px rgba(35, 69, 51, 0.06); }
+  .workspace-page .brand, .workspace-page .library-heading h1 { color: #17231d; }
+  .workspace-page .top-action, .workspace-page .user-badge { border-color: rgba(35, 69, 51, 0.14); background: rgba(255, 255, 255, 0.7); color: #304239; }
+  .workspace-page .top-action:hover, .workspace-page .user-badge:hover { border-color: rgba(20, 113, 76, 0.3); background: #f0f8f2; color: #14714c; }
+  .workspace-page .library-tab { color: #607168; }
+  .workspace-page .library-tab.active { border-color: rgba(20, 113, 76, 0.16); background: #edf8f0; color: #14714c; box-shadow: none; }
+  .workspace-page .round-action, .workspace-page .segmented { border-color: rgba(35, 69, 51, 0.14); background: rgba(255, 255, 255, 0.74); color: #405148; }
+  .workspace-page .segmented.active { background: #e8f6ec; color: #14714c; }
+  .workspace-page .black-action { border-color: #14714c; background: #14714c; color: #f5fff7; box-shadow: none; }
+  .workspace-page .resume-card, .workspace-page .resume-card:nth-child(3n + 1), .workspace-page .resume-card:nth-child(3n + 2) { border-color: rgba(35, 69, 51, 0.13); background: #fbfdfb; box-shadow: 0 12px 28px rgba(35, 69, 51, 0.07), inset 0 1px rgba(255, 255, 255, 0.8); }
+  .workspace-page .resume-card:hover { border-color: rgba(20, 113, 76, 0.3); background: #f5fbf6; box-shadow: 0 16px 32px rgba(35, 69, 51, 0.1), inset 0 1px rgba(255, 255, 255, 0.82); }
+  .workspace-page .create-card { background: rgba(255, 255, 255, 0.64); }
+  .workspace-page .resume-card strong { color: #1b2a21; }
+  .workspace-page .resume-card span:last-child, .workspace-page .resume-card-menu { color: #6b7c72; }
+  .workspace-page .resume-card-icon { border-color: rgba(20, 113, 76, 0.13); background: #eff8f1; color: #14714c; }
+  .workspace-page .workspace-loading { background: rgba(244, 249, 245, 0.92); backdrop-filter: blur(14px); }
+  .workspace-page .loading-card { border-color: rgba(35, 69, 51, 0.13); background: rgba(255, 255, 255, 0.88); box-shadow: 0 20px 56px rgba(35, 69, 51, 0.12), inset 0 1px rgba(255, 255, 255, 0.9); }
+  .workspace-page .resume-pane { background: rgba(232, 241, 235, 0.78); }
+  .workspace-page .resume-paper {
+    border-color: rgba(25, 91, 61, 0.17);
+    background: #fbfdfb;
+    color: #1b2a21;
+  }
+  .workspace-page .resume-document-head { border-bottom-color: rgba(25, 91, 61, 0.24); }
+  .workspace-page .resume-name-input { color: #16261d; }
+  .workspace-page .resume-title-input,
+  .workspace-page .resume-contact-row input { color: #607168; }
+  .workspace-page .resume-contact-row input { border-bottom-color: rgba(25, 91, 61, 0.18); }
+  .workspace-page .resume-section { border-bottom-color: rgba(25, 91, 61, 0.12); }
+  .workspace-page .resume-section::before { background: rgba(20, 113, 76, 0.12); }
+  .workspace-page .resume-section textarea {
+    border-color: rgba(25, 91, 61, 0.1);
+    background: #f0f6f1;
+    color: #203128;
+  }
+  .workspace-page .resume-section textarea:focus {
+    border-color: rgba(20, 113, 76, 0.42);
+    background: #f8fcf9;
+  }
+  .workspace-page .resume-section.is-editing { background: linear-gradient(90deg, rgba(20, 113, 76, 0.07), transparent 60%); }
+  .workspace-page .ai-pane .auth-note {
+    border-color: rgba(20, 113, 76, 0.16);
+    background: rgba(20, 113, 76, 0.065);
+    color: #607168;
+  }
+  @media (max-width: 1350px) {
+    .workspace-page .ai-pane { background: linear-gradient(120deg, rgba(246, 251, 247, 0.96), rgba(237, 246, 240, 0.96)); }
   }
 }

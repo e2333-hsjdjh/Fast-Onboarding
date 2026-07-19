@@ -31,6 +31,12 @@ def sqlite_connection(db_path: Path):
         conn.close()
 
 
+COMMON_WEAK_PASSWORDS = {
+    "123456789012", "passwordpassword", "qwertyuiopasdf", "abcdefghijkl",
+    "111111111111", "000000000000", "password1234", "welcome12345",
+}
+
+
 MATERIAL_TEMPLATE_ROWS: list[dict[str, Any]] = [
     {
         "template_key": "basic",
@@ -271,8 +277,7 @@ class UserDatabase:
         clean_email = email.strip().lower()
         if not clean_email:
             raise ValueError("email is required")
-        if len(password) < 6:
-            raise ValueError("password must be at least 6 characters")
+        self._validate_password(password)
         active_user_id = self._normalize_user_id(clean_email)
         if self.get_user(active_user_id):
             raise ValueError("user already exists")
@@ -1072,6 +1077,13 @@ class UserDatabase:
 
     def _hash_password(self, password: str, salt: str) -> str:
         return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000).hex()
+
+    def _validate_password(self, password: str) -> None:
+        normalized = password.casefold()
+        if len(password) < 12:
+            raise ValueError("password must be at least 12 characters")
+        if normalized in COMMON_WEAK_PASSWORDS or normalized.isdigit() or len(set(normalized)) < 4:
+            raise ValueError("password is too common or easy to guess")
 
     def _avatar_initials(self, name: str) -> str:
         clean = name.strip()
